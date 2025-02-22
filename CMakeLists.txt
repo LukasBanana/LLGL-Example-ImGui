@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
 project(LLGL-Example-ImGui VERSION 1.0 LANGUAGES C CXX OBJCXX)
 
+set(CMAKE_CXX_STANDARD 11)
+
 # User options
 option(EXAMPLE_WITH_VULKAN "Include Vulkan example. This requires the dependency to the Vulkan SDK." OFF)
 
@@ -108,6 +110,10 @@ endif()
 
 # Create executable project
 add_executable(LLGL-Example-ImGui ${EXAMPLE_SOURCES})
+
+if(APPLE)
+    target_link_libraries(LLGL-Example-ImGui "-framework Cocoa -framework Foundation -framework Metal -framework GameController")
+endif()
 
 # Add Vulkan dependency
 if(EXAMPLE_WITH_VULKAN)

@@ -37,7 +37,11 @@ static std::unique_ptr<Backend> CreateLLGLBackend(int argc, char* argv[])
 static int InitExample(int argc, char* argv[])
 {
     // Initialize logging
+    #ifdef __APPLE__
+    LLGL::Log::RegisterCallbackStd();
+    #else
     LLGL::Log::RegisterCallbackStd(LLGL::Log::StdOutFlags::Colored);
+    #endif
 
     // Create LLGL backend
     backend = CreateLLGLBackend(argc, argv);

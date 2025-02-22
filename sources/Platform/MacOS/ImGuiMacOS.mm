@@ -12,7 +12,7 @@
 #include "imgui_impl_osx.h"
 
 
-static NSView* GetContentViewFromNativeHandle(const NativeHandle& nativeHandle)
+static NSView* GetContentViewFromNativeHandle(const LLGL::NativeHandle& nativeHandle)
 {
     if ([nativeHandle.responder isKindOfClass:[NSWindow class]])
     {
@@ -24,7 +24,7 @@ static NSView* GetContentViewFromNativeHandle(const NativeHandle& nativeHandle)
         /* Interpret responder as NSView */
         return (NSView*)nativeHandle.responder;
     }
-    LLGL::Trap(LLGL::Exception::InvalidArgument, __FUNCTIOIN__, "NativeHandle::responder is neither of type NSWindow nor NSView");
+    LLGL::Trap(LLGL::Exception::InvalidArgument, __FUNCTION__, "NativeHandle::responder is neither of type NSWindow nor NSView");
 }
 
 static NSView* GetNSViewFromSurface(LLGL::Surface& surface)
