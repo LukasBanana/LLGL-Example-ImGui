@@ -1,0 +1,8 @@
+[submodule "external/LLGL"]
+	path = external/LLGL
+	url = https://github.com/LukasBanana/LLGL.git
+	branch = master
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = master
