@@ -13,7 +13,6 @@
 #include <LLGL/Backend/Direct3D11/NativeHandle.h>
 
 #include "imgui.h"
-#include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
 
 class BackendD3D11 final : public Backend
@@ -26,21 +25,12 @@ public:
 
     BackendD3D11()
     {
-        renderer = LLGL::RenderSystem::Load("Direct3D11");
-
-        LLGL::SwapChainDescriptor swapChainDesc;
-        swapChainDesc.resolution = { 1280, 768 };
-        swapChain = renderer->CreateSwapChain(swapChainDesc);
-
-        cmdBuffer = renderer->CreateCommandBuffer(LLGL::CommandBufferFlags::ImmediateSubmit);
+        CreateResources("Direct3D11");
     }
 
     ~BackendD3D11()
     {
-        input.Drop(swapChain->GetSurface());
-
         ImGui_ImplDX11_Shutdown();
-        ImGui_ImplWin32_Shutdown();
 
         // Release D3D handles
         if (d3dDevice != nullptr)
@@ -51,12 +41,7 @@ public:
 
     void InitImGui() override
     {
-        // Setup platform backend
-        LLGL::Window& wnd = LLGL::CastTo<LLGL::Window>(swapChain->GetSurface());
-        LLGL::NativeHandle nativeHandle;
-        wnd.GetNativeHandle(&nativeHandle, sizeof(nativeHandle));
-
-        ImGui_ImplWin32_Init(nativeHandle.window);
+        Backend::InitImGui();
 
         // Setup renderer backend
         LLGL::Direct3D11::RenderSystemNativeHandle nativeDeviceHandle;
@@ -72,8 +57,9 @@ public:
 
     void NextFrame() override
     {
+        Backend::NextFrame();
+
         ImGui_ImplDX11_NewFrame();
-        ImGui_ImplWin32_NewFrame();
     }
 
     void DrawFrame(ImDrawData* data) override

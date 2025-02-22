@@ -25,13 +25,16 @@ public:
     static void RegisterBackend(const char* name, AllocateBackendFunc onAllocateFunc);
 
 public:
-    virtual ~Backend() = default;
+    virtual ~Backend();
 
-    virtual void InitImGui() = 0;
-    virtual void NextFrame() = 0;
+    virtual void InitImGui();
+    virtual void NextFrame();
     virtual void DrawFrame(ImDrawData* data) = 0;
 
     static BackendPtr NewBackend(const char* name);
+
+protected:
+    void CreateResources(const char* moduleName);
 };
 
 #define REGISTER_BACKEND(CLASS, NAME)               \

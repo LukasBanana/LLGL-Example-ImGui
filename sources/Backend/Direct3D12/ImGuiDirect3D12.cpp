@@ -14,7 +14,6 @@
 #include <LLGL/Trap.h>
 
 #include "imgui.h"
-#include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
 
 static DXGI_FORMAT GetRTVFormat(LLGL::Format format)
@@ -125,21 +124,12 @@ public:
 
     BackendD3D12()
     {
-        renderer = LLGL::RenderSystem::Load("Direct3D12");
-
-        LLGL::SwapChainDescriptor swapChainDesc;
-        swapChainDesc.resolution = { 1280, 768 };
-        swapChain = renderer->CreateSwapChain(swapChainDesc);
-
-        cmdBuffer = renderer->CreateCommandBuffer(LLGL::CommandBufferFlags::ImmediateSubmit);
+        CreateResources("Direct3D12");
     }
 
     ~BackendD3D12()
     {
-        input.Drop(swapChain->GetSurface());
-
         ImGui_ImplDX12_Shutdown();
-        ImGui_ImplWin32_Shutdown();
 
         // Release D3D handles
         g_heapAllocator.reset();
@@ -151,12 +141,7 @@ public:
 
     void InitImGui() override
     {
-        // Setup platform backend
-        LLGL::Window& wnd = LLGL::CastTo<LLGL::Window>(swapChain->GetSurface());
-        LLGL::NativeHandle nativeHandle;
-        wnd.GetNativeHandle(&nativeHandle, sizeof(nativeHandle));
-
-        ImGui_ImplWin32_Init(nativeHandle.window);
+        Backend::InitImGui();
 
         // Setup renderer backend
         LLGL::Direct3D12::RenderSystemNativeHandle nativeDeviceHandle;
@@ -194,8 +179,9 @@ public:
 
     void NextFrame() override
     {
+        Backend::NextFrame();
+
         ImGui_ImplDX12_NewFrame();
-        ImGui_ImplWin32_NewFrame();
     }
 
     void DrawFrame(ImDrawData* data) override

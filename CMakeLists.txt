@@ -22,6 +22,10 @@ file(
 
 if(APPLE)
     file(
+        GLOB EXAMPLE_SOURCES_PLATFORM
+        "sources/Platform/MacOS/*.*"
+    )
+    file(
         GLOB EXAMPLE_SOURCES_BACKEND
         "sources/Backend/Metal/*.*"
         "sources/Backend/Vulkan/*.*"
@@ -32,6 +36,10 @@ if(APPLE)
         "external/imgui/backends/imgui_impl_osx.*"
     )
 elseif(WIN32)
+    file(
+        GLOB EXAMPLE_SOURCES_PLATFORM
+        "sources/Platform/Win32/*.*"
+    )
     file(
         GLOB EXAMPLE_SOURCES_BACKEND
         "sources/Backend/Direct3D11/*.*"
@@ -48,6 +56,10 @@ elseif(WIN32)
         "external/imgui/backends/imgui_impl_win32.*"
     )
 elseif(LINUX)
+    file(
+        GLOB EXAMPLE_SOURCES_PLATFORM
+        "sources/Platform/Linux/*.*"
+    )
     file(
         GLOB EXAMPLE_SOURCES_BACKEND
         "sources/Backend/OpenGL/*.*"
@@ -71,15 +83,20 @@ endif()
 file(GLOB EXAMPLE_SOURCES_BACKEND_MAIN "sources/Backend/*.*")
 list(APPEND EXAMPLE_SOURCES_BACKEND ${EXAMPLE_SOURCES_BACKEND_MAIN})
 
+file(GLOB EXAMPLE_SOURCES_PLATFORM_MAIN "sources/Platform/*.*")
+list(APPEND EXAMPLE_SOURCES_PLATFORM ${EXAMPLE_SOURCES_PLATFORM_MAIN})
+
 set(
     EXAMPLE_SOURCES
     ${EXAMPLE_SOURCES_MAIN}
+    ${EXAMPLE_SOURCES_PLATFORM}
     ${EXAMPLE_SOURCES_BACKEND}
     ${IMGUI_SOURCES_MAIN}
     ${IMGUI_SOURCES_BACKEND}
 )
 
 source_group("Sources" FILES ${EXAMPLE_SOURCES_MAIN})
+source_group("Sources\\Platform" FILES ${EXAMPLE_SOURCES_PLATFORM})
 source_group("Sources\\Backend" FILES ${EXAMPLE_SOURCES_BACKEND})
 source_group("Sources\\ImGui" FILES ${IMGUI_SOURCES_MAIN} ${IMGUI_SOURCES_BACKEND})
 
