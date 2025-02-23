@@ -7,11 +7,6 @@
  */
 
 #include "Globals.h"
-#include <cmath>
-
-#ifndef M_PI
-#define M_PI 3.141592654f
-#endif
 
 
 LLGL::Input                 input;

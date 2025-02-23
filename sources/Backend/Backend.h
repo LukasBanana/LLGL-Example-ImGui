@@ -31,6 +31,9 @@ public:
     virtual void BeginFrame();
     virtual void EndFrame(ImDrawData* data) = 0;
 
+    void RenderScene();
+    void OnResizeSurface(const LLGL::Extent2D& size);
+
     static BackendPtr NewBackend(const char* name);
 
 protected:
@@ -46,6 +49,7 @@ protected:
 
 private:
     LLGL::RenderingDebugger debugger;
+    std::uint64_t           lastTick = 0;
 };
 
 #define REGISTER_BACKEND(CLASS, NAME)               \

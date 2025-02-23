@@ -40,6 +40,7 @@ void Backend::RegisterBackend(const char* name, AllocateBackendFunc onAllocateFu
 void Backend::Init()
 {
     PlatformInit(swapChain->GetSurface());
+    lastTick = LLGL::Timer::Tick();
 }
 
 void Backend::BeginFrame()
@@ -63,43 +64,48 @@ struct Vertex
 
 static std::vector<Vertex> GenerateMeshVertices()
 {
+    constexpr std::uint32_t col0 = 0xFFFFFFFF;
+    constexpr std::uint32_t col1 = 0xFFFFFFFF;
+    constexpr std::uint32_t col2 = 0xFFFFFFFF;
+    constexpr std::uint32_t col3 = 0xFFFFFFFF;
+
     return
     {
         // front
-        Vertex{ { -1, -1, -1 }, {  0,  0, -1 }, 0xFF0000FF },
-        Vertex{ { -1,  1, -1 }, {  0,  0, -1 }, 0xFF00FF00 },
-        Vertex{ {  1,  1, -1 }, {  0,  0, -1 }, 0xFFFF0000 },
-        Vertex{ {  1, -1, -1 }, {  0,  0, -1 }, 0xFF00FFFF },
+        Vertex{ { -1, -1, -1 }, {  0,  0, -1 }, col0 },
+        Vertex{ { -1,  1, -1 }, {  0,  0, -1 }, col1 },
+        Vertex{ {  1,  1, -1 }, {  0,  0, -1 }, col2 },
+        Vertex{ {  1, -1, -1 }, {  0,  0, -1 }, col3 },
 
         // right
-        Vertex{ {  1, -1, -1 }, { +1,  0,  0 }, 0xFF0000FF },
-        Vertex{ {  1,  1, -1 }, { +1,  0,  0 }, 0xFF00FF00 },
-        Vertex{ {  1,  1,  1 }, { +1,  0,  0 }, 0xFFFF0000 },
-        Vertex{ {  1, -1,  1 }, { +1,  0,  0 }, 0xFF00FFFF },
+        Vertex{ {  1, -1, -1 }, { +1,  0,  0 }, col0 },
+        Vertex{ {  1,  1, -1 }, { +1,  0,  0 }, col1 },
+        Vertex{ {  1,  1,  1 }, { +1,  0,  0 }, col2 },
+        Vertex{ {  1, -1,  1 }, { +1,  0,  0 }, col3 },
 
         // left
-        Vertex{ { -1, -1,  1 }, { -1,  0,  0 }, 0xFF0000FF },
-        Vertex{ { -1,  1,  1 }, { -1,  0,  0 }, 0xFF00FF00 },
-        Vertex{ { -1,  1, -1 }, { -1,  0,  0 }, 0xFFFF0000 },
-        Vertex{ { -1, -1, -1 }, { -1,  0,  0 }, 0xFF00FFFF },
+        Vertex{ { -1, -1,  1 }, { -1,  0,  0 }, col0 },
+        Vertex{ { -1,  1,  1 }, { -1,  0,  0 }, col1 },
+        Vertex{ { -1,  1, -1 }, { -1,  0,  0 }, col2 },
+        Vertex{ { -1, -1, -1 }, { -1,  0,  0 }, col3 },
 
         // top
-        Vertex{ { -1,  1, -1 }, {  0, +1,  0 }, 0xFF0000FF },
-        Vertex{ { -1,  1,  1 }, {  0, +1,  0 }, 0xFF00FF00 },
-        Vertex{ {  1,  1,  1 }, {  0, +1,  0 }, 0xFFFF0000 },
-        Vertex{ {  1,  1, -1 }, {  0, +1,  0 }, 0xFF00FFFF },
+        Vertex{ { -1,  1, -1 }, {  0, +1,  0 }, col0 },
+        Vertex{ { -1,  1,  1 }, {  0, +1,  0 }, col1 },
+        Vertex{ {  1,  1,  1 }, {  0, +1,  0 }, col2 },
+        Vertex{ {  1,  1, -1 }, {  0, +1,  0 }, col3 },
 
         // bottom
-        Vertex{ { -1, -1,  1 }, {  0, -1,  0 }, 0xFF0000FF },
-        Vertex{ { -1, -1, -1 }, {  0, -1,  0 }, 0xFF00FF00 },
-        Vertex{ {  1, -1, -1 }, {  0, -1,  0 }, 0xFFFF0000 },
-        Vertex{ {  1, -1,  1 }, {  0, -1,  0 }, 0xFF00FFFF },
+        Vertex{ { -1, -1,  1 }, {  0, -1,  0 }, col0 },
+        Vertex{ { -1, -1, -1 }, {  0, -1,  0 }, col1 },
+        Vertex{ {  1, -1, -1 }, {  0, -1,  0 }, col2 },
+        Vertex{ {  1, -1,  1 }, {  0, -1,  0 }, col3 },
 
         // back
-        Vertex{ {  1, -1,  1 }, {  0,  0, +1 }, 0xFF0000FF },
-        Vertex{ {  1,  1,  1 }, {  0,  0, +1 }, 0xFF00FF00 },
-        Vertex{ { -1,  1,  1 }, {  0,  0, +1 }, 0xFFFF0000 },
-        Vertex{ { -1, -1,  1 }, {  0,  0, +1 }, 0xFF00FFFF },
+        Vertex{ {  1, -1,  1 }, {  0,  0, +1 }, col0 },
+        Vertex{ {  1,  1,  1 }, {  0,  0, +1 }, col1 },
+        Vertex{ { -1,  1,  1 }, {  0,  0, +1 }, col2 },
+        Vertex{ { -1, -1,  1 }, {  0,  0, +1 }, col3 },
     };
 }
 
@@ -114,6 +120,43 @@ static std::vector<std::uint16_t> GenerateMeshIndices()
         16, 17, 18, 16, 18, 19, // bottom
         20, 21, 22, 20, 22, 23, // back
     };
+}
+
+class WindowEventListener final : public LLGL::Window::EventListener
+{
+    Backend* backend = nullptr;
+
+public:
+    WindowEventListener(Backend* inBackend) :
+        backend { inBackend }
+    {
+    }
+
+    void OnResize(LLGL::Window& /*sender*/, const LLGL::Extent2D& clientAreaSize) override
+    {
+        if (cmdBuffer != nullptr)
+        {
+            backend->OnResizeSurface(clientAreaSize);
+            backend->RenderScene();
+            swapChain->Present();
+        }
+    }
+
+    void OnUpdate(LLGL::Window& /*sender*/) override
+    {
+        if (cmdBuffer != nullptr)
+        {
+            backend->RenderScene();
+            swapChain->Present();
+        }
+    }
+};
+
+void Backend::OnResizeSurface(const LLGL::Extent2D& size)
+{
+    swapChain->ResizeBuffers(size);
+    const float aspectRatio = static_cast<float>(size.width) / static_cast<float>(size.height);
+    scene.ViewProjection(aspectRatio);
 }
 
 bool Backend::CreateResources(
@@ -141,6 +184,8 @@ bool Backend::CreateResources(
         return false;
     }
 
+    const LLGL::RendererInfo& info = renderer->GetRendererInfo();
+
     #ifdef LLGL_OS_MACOS
     constexpr unsigned resX = 1280*2;
     constexpr unsigned resY = 768*2;
@@ -149,17 +194,33 @@ bool Backend::CreateResources(
     constexpr unsigned resY = 768;
     #endif
 
+    // Create custom window
+    LLGL::WindowDescriptor windowDesc;
+    {
+        windowDesc.title    = LLGL::UTF8String::Printf("LLGL/ImGui Example ( %s )", info.rendererName.c_str());
+        windowDesc.size     = LLGL::Extent2D{ resX, resY };
+        windowDesc.flags    = LLGL::WindowFlags::DisableSizeScaling | LLGL::WindowFlags::Centered | LLGL::WindowFlags::Resizable;
+    }
+    auto surface = std::shared_ptr<LLGL::Window>(LLGL::Window::Create(windowDesc));
+
+    // Create swap chain
     LLGL::SwapChainDescriptor swapChainDesc;
-    swapChainDesc.resolution = { resX, resY };
-    swapChain = renderer->CreateSwapChain(swapChainDesc);
+    {
+        swapChainDesc.resolution = { resX, resY };
+    }
+    swapChain = renderer->CreateSwapChain(swapChainDesc, surface);
 
-    // Enable v-sync
-    swapChain->SetVsyncInterval(1);
+    if (scene.showcase.isVsync)
+        swapChain->SetVsyncInterval(1);
 
+    // Register callback to update swap-chain on window resize
+    surface->AddEventListener(std::make_shared<WindowEventListener>(this));
+    surface->Show();
+
+    // Create command buffer with immediate context
     cmdBuffer = renderer->CreateCommandBuffer(LLGL::CommandBufferFlags::ImmediateSubmit);
 
     // Print renderer information
-    const LLGL::RendererInfo& info = renderer->GetRendererInfo();
     const LLGL::Extent2D swapChainRes = swapChain->GetResolution();
 
     LLGL::Log::Printf(
@@ -279,15 +340,16 @@ bool Backend::CreateResources(
 
     LLGL::GraphicsPipelineDescriptor psoDesc;
     {
-        psoDesc.debugName           = "Graphics.PSO";
-        psoDesc.pipelineLayout      = psoLayout;
-        psoDesc.vertexShader        = vertShader;
-        psoDesc.fragmentShader      = fragShader;
-        psoDesc.indexFormat         = LLGL::Format::R16UInt;
-        psoDesc.primitiveTopology   = LLGL::PrimitiveTopology::TriangleList;
-        psoDesc.depth.testEnabled   = true;
-        psoDesc.depth.writeEnabled  = true;
-        psoDesc.rasterizer.cullMode = LLGL::CullMode::Back;
+        psoDesc.debugName                       = "Graphics.PSO";
+        psoDesc.pipelineLayout                  = psoLayout;
+        psoDesc.vertexShader                    = vertShader;
+        psoDesc.fragmentShader                  = fragShader;
+        psoDesc.indexFormat                     = LLGL::Format::R16UInt;
+        psoDesc.primitiveTopology               = LLGL::PrimitiveTopology::TriangleList;
+        psoDesc.depth.testEnabled               = true;
+        psoDesc.depth.writeEnabled              = true;
+        psoDesc.rasterizer.cullMode             = LLGL::CullMode::Back;
+        psoDesc.blend.targets[0].blendEnabled   = true;
     }
     scene.graphicsPSO = renderer->CreatePipelineState(psoDesc);
 
@@ -301,4 +363,126 @@ bool Backend::CreateResources(
     }
 
     return true;
+}
+
+void NormalizeVector3(float* v)
+{
+    const float vecLen = std::sqrtf(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    v[0] /= vecLen;
+    v[1] /= vecLen;
+    v[2] /= vecLen;
+}
+
+static void ShowImGuiElements(float dt)
+{
+    // Show ImGui's demo window
+    ImGui::Begin("LLGL/ImGui Example");
+    {
+        ImGui::SeparatorText("Video");
+        {
+            ImGui::Text("Frame Rate: %.3f ms (%.1f FPS)", dt * 1000.0f, 1.0f / dt);
+
+            if (ImGui::Checkbox("Vsync Interval", &scene.showcase.isVsync))
+                swapChain->SetVsyncInterval(scene.showcase.isVsync ? 1 : 0);
+        }
+        ImGui::SeparatorText("Light");
+        {
+            if (ImGui::SliderFloat3("Light Vector", scene.view.lightVector, -1.0f, +1.0f))
+                NormalizeVector3(scene.view.lightVector);
+        }
+        ImGui::SeparatorText("Scene");
+        {
+            ImGui::SliderFloat("Model Distance", &scene.view.wMatrix[3][2], 3.0f, 25.0f);
+
+            ImGui::Combo("Rotation Mode", &scene.showcase.rotateMode, "Auto\0Manual\0\0");
+
+            switch (scene.showcase.rotateMode)
+            {
+            case 0:
+                if (ImGui::SliderFloat("Rotation Speed", &scene.showcase.rotateSpeed, -1.0f, +1.0f))
+                {
+                    if (std::abs(scene.showcase.rotateSpeed) < 0.05f)
+                        scene.showcase.rotateSpeed = 0.0f;
+                }
+                break;
+
+            case 1:
+                ImGui::SliderFloat("Rotation Angle", &scene.showcase.rotation, 0.0f, M_PI*2.0f);
+                break;
+            }
+        }
+        ImGui::SeparatorText("Color");
+        {
+            ImGui::ColorPicker4("Model Color", scene.view.modelColor);
+        }
+    }
+    ImGui::End();
+}
+
+void Backend::RenderScene()
+{
+    const float backgroundColor[4] = { 0.2f, 0.2f, 0.4f, 1.0f };
+
+    // Measure elapsed time between frames for smooth animations
+    std::uint64_t newTick = LLGL::Timer::Tick();
+    const float deltaTime = static_cast<float>(static_cast<double>(newTick - lastTick) / static_cast<double>(LLGL::Timer::Frequency()));
+
+    cmdBuffer->Begin();
+    {
+        // Upload new view data to GPU
+        if (scene.viewCbuffer != nullptr)
+        {
+            if (scene.showcase.rotateMode == 0)
+            {
+                scene.showcase.rotation += scene.showcase.rotateSpeed * deltaTime * 10.0f;
+                if (scene.showcase.rotation > M_PI*2.0f)
+                    scene.showcase.rotation -= M_PI*2.0f;
+                if (scene.showcase.rotation < 0.0f)
+                    scene.showcase.rotation += M_PI*2.0f;
+            }
+            scene.ModelRotation(1.0f, 1.0f, 1.0f, scene.showcase.rotation);
+
+            cmdBuffer->UpdateBuffer(*scene.viewCbuffer, 0, &scene.view, sizeof(scene.view));
+        }
+
+        cmdBuffer->BeginRenderPass(*swapChain);
+        {
+            cmdBuffer->Clear(LLGL::ClearFlags::ColorDepth, LLGL::ClearValue{ backgroundColor });
+
+            cmdBuffer->SetViewport(swapChain->GetResolution());
+
+            // Render 3D scene
+            if (scene.graphicsPSO != nullptr)
+            {
+                cmdBuffer->PushDebugGroup("RenderScene");
+                {
+                    cmdBuffer->SetPipelineState(*scene.graphicsPSO);
+                    cmdBuffer->SetVertexBuffer(*scene.vertexBuffer);
+                    cmdBuffer->SetIndexBuffer(*scene.indexBuffer);
+                    cmdBuffer->SetResource(0, *scene.viewCbuffer);
+                    cmdBuffer->DrawIndexed(scene.numIndices, 0);
+                }
+                cmdBuffer->PopDebugGroup();
+            }
+
+            // GUI Rendering with ImGui library
+            cmdBuffer->PushDebugGroup("RenderGUI");
+            {
+                backend->BeginFrame();
+                {
+                    ImGui::NewFrame();
+                    {
+                        ShowImGuiElements(deltaTime);
+                    }
+                    ImGui::Render();
+                }
+                backend->EndFrame(ImGui::GetDrawData());
+            }
+            cmdBuffer->PopDebugGroup();
+        }
+        cmdBuffer->EndRenderPass();
+    }
+    cmdBuffer->End();
+
+    lastTick = newTick;
 }

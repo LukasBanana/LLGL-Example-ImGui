@@ -12,12 +12,20 @@
 #include "Backend/Backend.h"
 #include <memory>
 #include <cstdint>
+#include <cmath>
+
+
+#ifndef M_PI
+#define M_PI 3.141592654f
+#endif
+
 
 extern LLGL::Input              input;
 extern LLGL::RenderSystemPtr    renderer;
 extern LLGL::SwapChain*         swapChain;
 extern LLGL::CommandBuffer*     cmdBuffer;
 extern std::unique_ptr<Backend> backend;
+
 
 struct Scene
 {
@@ -26,6 +34,15 @@ struct Scene
     LLGL::Buffer*           vertexBuffer    = nullptr;
     LLGL::Buffer*           indexBuffer     = nullptr;
     std::uint32_t           numIndices      = 0;
+
+    struct Showcase
+    {
+        int                 rotateMode      = 0;
+        float               rotation        = 0.0f;
+        float               rotateSpeed     = 0.1f;
+        bool                isVsync         = false;
+    }
+    showcase;
 
     struct alignas(16) View
     {

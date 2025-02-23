@@ -12,6 +12,7 @@
 #include "imgui.h"
 #include "Globals.h"
 #include <string.h>
+#include <cmath>
 
 
 static std::unique_ptr<Backend> CreateLLGLBackend(int argc, char* argv[])
@@ -98,68 +99,6 @@ static void ForwardInputToImGui()
     }
 }
 
-static void ShowImGuiElements()
-{
-    // Show ImGui's demo window
-    ImGui::ShowDemoWindow();
-}
-
-static void RenderFrame()
-{
-    const float backgroundColor[4] = { 0.2f, 0.2f, 0.4f, 1.0f };
-    static float angle = 0.0f;
-
-    cmdBuffer->Begin();
-    {
-        // Upload new view data to GPU
-        if (scene.viewCbuffer != nullptr)
-        {
-            angle += 0.01f;
-            scene.ModelRotation(1.0f, 1.0f, 1.0f, angle);
-
-            cmdBuffer->UpdateBuffer(*scene.viewCbuffer, 0, &scene.view, sizeof(scene.view));
-        }
-
-        cmdBuffer->BeginRenderPass(*swapChain);
-        {
-            cmdBuffer->Clear(LLGL::ClearFlags::ColorDepth, LLGL::ClearValue{ backgroundColor });
-
-            cmdBuffer->SetViewport(swapChain->GetResolution());
-
-            // Render 3D scene
-            if (scene.graphicsPSO != nullptr)
-            {
-                cmdBuffer->PushDebugGroup("RenderScene");
-                {
-                    cmdBuffer->SetPipelineState(*scene.graphicsPSO);
-                    cmdBuffer->SetVertexBuffer(*scene.vertexBuffer);
-                    cmdBuffer->SetIndexBuffer(*scene.indexBuffer);
-                    cmdBuffer->SetResource(0, *scene.viewCbuffer);
-                    cmdBuffer->DrawIndexed(scene.numIndices, 0);
-                }
-                cmdBuffer->PopDebugGroup();
-            }
-
-            // GUI Rendering with ImGui library
-            cmdBuffer->PushDebugGroup("RenderGUI");
-            {
-                backend->BeginFrame();
-                {
-                    ImGui::NewFrame();
-                    {
-                        ShowImGuiElements();
-                    }
-                    ImGui::Render();
-                }
-                backend->EndFrame(ImGui::GetDrawData());
-            }
-            cmdBuffer->PopDebugGroup();
-        }
-        cmdBuffer->EndRenderPass();
-    }
-    cmdBuffer->End();
-}
-
 int main(int argc, char* argv[])
 {
     // Initialize example backend and ImGui
@@ -172,7 +111,7 @@ int main(int argc, char* argv[])
         ForwardInputToImGui();
 
         // Render frame and present result on screen
-        RenderFrame();
+        backend->RenderScene();
         swapChain->Present();
 
         // Reset input state
