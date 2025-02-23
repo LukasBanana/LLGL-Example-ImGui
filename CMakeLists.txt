@@ -34,7 +34,8 @@ if(APPLE)
         "sources/Backend/Metal/*.mm"
         "sources/Backend/Metal/*.cpp"
         "sources/Backend/Metal/*.h"
-        "sources/Backend/Vulkan/*.mm"
+        "sources/Backend/OpenGL/*.cpp"
+        "sources/Backend/OpenGL/*.h"
         "sources/Backend/Vulkan/*.cpp"
         "sources/Backend/Vulkan/*.h"
     )
@@ -42,6 +43,8 @@ if(APPLE)
         GLOB IMGUI_SOURCES_BACKEND
         "external/imgui/backends/imgui_impl_metal.*"
         "external/imgui/backends/imgui_impl_osx.*"
+        "external/imgui/backends/imgui_impl_opengl3.*"
+        "external/imgui/backends/imgui_impl_opengl3_loader.*"
     )
 elseif(WIN32)
     file(
