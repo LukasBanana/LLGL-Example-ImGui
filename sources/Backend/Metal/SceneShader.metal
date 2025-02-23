@@ -16,7 +16,7 @@ struct View
     float4x4 wMatrix;
     float4   modelColor;
     float4   lightVector;
-}
+};
 
 struct VertexIn
 {
@@ -38,7 +38,7 @@ vertex VertexOut VSMain(
 {
     VertexOut outp;
     outp.position   = view.vpMatrix * (view.wMatrix * float4(inp.position, 1));
-    outp.normal     = normalize((float3x3)view.wMatrix * inp.normal);
+    outp.normal     = normalize((view.wMatrix * float4(inp.normal, 0)).xyz);
     outp.color      = view.modelColor * inp.color;
     return outp;
 }
