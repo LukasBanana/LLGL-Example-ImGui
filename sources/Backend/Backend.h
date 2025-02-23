@@ -27,9 +27,9 @@ public:
 public:
     virtual ~Backend();
 
-    virtual void InitImGui();
-    virtual void NextFrame();
-    virtual void DrawFrame(ImDrawData* data) = 0;
+    virtual void Init();
+    virtual void BeginFrame();
+    virtual void EndFrame(ImDrawData* data) = 0;
 
     static BackendPtr NewBackend(const char* name);
 

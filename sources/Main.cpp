@@ -61,7 +61,7 @@ static int InitExample(int argc, char* argv[])
     ImGui::StyleColorsDark();
 
     // Initialize LLGL/ImGui backend
-    backend->InitImGui();
+    backend->Init();
 
     // Attach input listener to main window
     input.Listen(swapChain->GetSurface());
@@ -104,6 +104,32 @@ static void ShowImGuiElements()
     ImGui::ShowDemoWindow();
 }
 
+static void RenderFrame()
+{
+    const float backgroundColor[4] = { 0.2f, 0.2f, 0.4f, 1.0f };
+
+    cmdBuffer->Begin();
+    {
+        cmdBuffer->BeginRenderPass(*swapChain);
+        {
+            cmdBuffer->Clear(LLGL::ClearFlags::Color, LLGL::ClearValue{ backgroundColor });
+
+            // GUI Rendering with ImGui library
+            backend->BeginFrame();
+            {
+                ImGui::NewFrame();
+                {
+                    ShowImGuiElements();
+                }
+                ImGui::Render();
+            }
+            backend->EndFrame(ImGui::GetDrawData());
+        }
+        cmdBuffer->EndRenderPass();
+    }
+    cmdBuffer->End();
+}
+
 int main(int argc, char* argv[])
 {
     // Initialize example backend and ImGui
@@ -111,35 +137,12 @@ int main(int argc, char* argv[])
     if (init != 0)
         return init;
 
-    const float backgroundColor[4] = { 0.2f, 0.2f, 0.4f, 1.0f };
-
     while (LLGL::Surface::ProcessEvents() && !input.KeyPressed(LLGL::Key::Escape))
     {
         ForwardInputToImGui();
 
-        // Start the Dear ImGui frame
-        backend->NextFrame();
-        ImGui::NewFrame();
-
-        ShowImGuiElements();
-
-        // Render frame
-        cmdBuffer->Begin();
-        {
-            cmdBuffer->BeginRenderPass(*swapChain);
-            {
-                cmdBuffer->Clear(LLGL::ClearFlags::Color, LLGL::ClearValue{ backgroundColor });
-
-                // GUI Rendering
-                ImGui::Render();
-
-                backend->DrawFrame(ImGui::GetDrawData());
-            }
-            cmdBuffer->EndRenderPass();
-        }
-        cmdBuffer->End();
-
-        // Present result on screen
+        // Render frame and present result on screen
+        RenderFrame();
         swapChain->Present();
 
         // Reset input state

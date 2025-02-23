@@ -39,9 +39,9 @@ public:
             d3dDeviceContext->Release();
     }
 
-    void InitImGui() override
+    void Init() override
     {
-        Backend::InitImGui();
+        Backend::Init();
 
         // Setup renderer backend
         LLGL::Direct3D11::RenderSystemNativeHandle nativeDeviceHandle;
@@ -55,14 +55,14 @@ public:
         ImGui_ImplDX11_Init(d3dDevice, d3dDeviceContext);
     }
 
-    void NextFrame() override
+    void BeginFrame() override
     {
-        Backend::NextFrame();
+        Backend::BeginFrame();
 
         ImGui_ImplDX11_NewFrame();
     }
 
-    void DrawFrame(ImDrawData* data) override
+    void EndFrame(ImDrawData* data) override
     {
         ImGui_ImplDX11_RenderDrawData(data);
     }

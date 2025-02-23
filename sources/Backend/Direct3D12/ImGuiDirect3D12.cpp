@@ -139,9 +139,9 @@ public:
         SAFE_RELEASE(d3dDevice);
     }
 
-    void InitImGui() override
+    void Init() override
     {
-        Backend::InitImGui();
+        Backend::Init();
 
         // Setup renderer backend
         LLGL::Direct3D12::RenderSystemNativeHandle nativeDeviceHandle;
@@ -177,14 +177,14 @@ public:
         ImGui_ImplDX12_Init(&imGuiInfo);
     }
 
-    void NextFrame() override
+    void BeginFrame() override
     {
-        Backend::NextFrame();
+        Backend::BeginFrame();
 
         ImGui_ImplDX12_NewFrame();
     }
 
-    void DrawFrame(ImDrawData* data) override
+    void EndFrame(ImDrawData* data) override
     {
         ID3D12DescriptorHeap* d3dHeap = g_heapAllocator->GetNative();
         d3dCommandList->SetDescriptorHeaps(1, &d3dHeap);

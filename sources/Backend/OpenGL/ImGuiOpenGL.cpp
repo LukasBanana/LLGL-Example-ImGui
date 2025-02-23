@@ -28,21 +28,21 @@ public:
         ImGui_ImplOpenGL3_Shutdown();
     }
 
-    void InitImGui() override
+    void Init() override
     {
-        Backend::InitImGui();
+        Backend::Init();
 
         ImGui_ImplOpenGL3_Init();
     }
 
-    void NextFrame() override
+    void BeginFrame() override
     {
-        Backend::NextFrame();
+        Backend::BeginFrame();
 
         ImGui_ImplOpenGL3_NewFrame();
     }
 
-    void DrawFrame(ImDrawData* data) override
+    void EndFrame(ImDrawData* data) override
     {
         ImGui_ImplOpenGL3_RenderDrawData(data);
     }

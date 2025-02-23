@@ -9,6 +9,7 @@
 #include "Backend.h"
 #include "../Globals.h"
 #include "../Platform/Platform.h"
+#include <LLGL/Utils/TypeNames.h>
 
 
 using BackendRegisterMap = std::map<std::string, Backend::AllocateBackendFunc>;
@@ -32,12 +33,12 @@ void Backend::RegisterBackend(const char* name, AllocateBackendFunc onAllocateFu
     registeredBackends[name] = onAllocateFunc;
 }
 
-void Backend::InitImGui()
+void Backend::Init()
 {
     PlatformInit(swapChain->GetSurface());
 }
 
-void Backend::NextFrame()
+void Backend::BeginFrame()
 {
     PlatformNewFrame(swapChain->GetSurface());
 }
@@ -60,12 +61,45 @@ void Backend::CreateResources(const char* moduleName)
         return;
     }
 
+    #ifdef LLGL_OS_MACOS
+    constexpr unsigned resX = 1280*2;
+    constexpr unsigned resY = 768*2;
+    #else
     constexpr unsigned resX = 1280;
     constexpr unsigned resY = 768;
+    #endif
 
     LLGL::SwapChainDescriptor swapChainDesc;
     swapChainDesc.resolution = { resX, resY };
     swapChain = renderer->CreateSwapChain(swapChainDesc);
 
     cmdBuffer = renderer->CreateCommandBuffer(LLGL::CommandBufferFlags::ImmediateSubmit);
+
+    // Print renderer information
+    const LLGL::RendererInfo& info = renderer->GetRendererInfo();
+    const LLGL::Extent2D swapChainRes = swapChain->GetResolution();
+
+    LLGL::Log::Printf(
+        "Render System:\n"
+        "  Renderer:           %s\n"
+        "  Device:             %s\n"
+        "  Vendor:             %s\n"
+        "  Shading Language:   %s\n"
+        "\n"
+        "Swap-Chain:\n"
+        "  Resolution:         %u x %u\n"
+        "  Samples:            %u\n"
+        "  ColorFormat:        %s\n"
+        "  DepthStencilFormat: %s\n"
+        "\n",
+        info.rendererName.c_str(),
+        info.deviceName.c_str(),
+        info.vendorName.c_str(),
+        info.shadingLanguageName.c_str(),
+        swapChainRes.width,
+        swapChainRes.height,
+        swapChain->GetSamples(),
+        LLGL::ToString(swapChain->GetColorFormat()),
+        LLGL::ToString(swapChain->GetDepthStencilFormat())
+    );
 }

@@ -14,7 +14,8 @@ option(EXAMPLE_WITH_VULKAN "Include Vulkan example. This requires the dependency
 # Gather source files
 file(
     GLOB EXAMPLE_SOURCES_MAIN
-    "sources/*.*"
+    "sources/*.cpp"
+    "sources/*.h"
 )
 file(
     GLOB IMGUI_SOURCES_MAIN
@@ -25,12 +26,17 @@ file(
 if(APPLE)
     file(
         GLOB EXAMPLE_SOURCES_PLATFORM
-        "sources/Platform/MacOS/*.*"
+        "sources/Platform/MacOS/*.mm"
+        "sources/Platform/MacOS/Info.plist"
     )
     file(
         GLOB EXAMPLE_SOURCES_BACKEND
-        "sources/Backend/Metal/*.*"
-        "sources/Backend/Vulkan/*.*"
+        "sources/Backend/Metal/*.mm"
+        "sources/Backend/Metal/*.cpp"
+        "sources/Backend/Metal/*.h"
+        "sources/Backend/Vulkan/*.mm"
+        "sources/Backend/Vulkan/*.cpp"
+        "sources/Backend/Vulkan/*.h"
     )
     file(
         GLOB IMGUI_SOURCES_BACKEND
@@ -109,7 +115,20 @@ if(NOT LLGL_FOUND)
 endif()
 
 # Create executable project
-add_executable(LLGL-Example-ImGui ${EXAMPLE_SOURCES})
+if(APPLE)
+    add_executable(LLGL-Example-ImGui MACOSX_BUNDLE ${EXAMPLE_SOURCES})
+    set_target_properties(
+        LLGL-Example-ImGui PROPERTIES
+        MACOSX_BUNDLE_GUI_IDENTIFIER        "LLGL.Examples.ImGui"
+        MACOSX_BUNDLE_LONG_VERSION_STRING   "LLGL.Examples.ImGui-1.0"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING  "1.0"
+        MACOSX_BUNDLE_BUNDLE_VERSION        1.0
+        MACOSX_BUNDLE                       ON
+        MACOSX_BUNDLE_INFO_PLIST            "${PROJECT_SOURCE_DIR}/sources/Platform/MacOS/Info.plist"
+    )
+else()
+    add_executable(LLGL-Example-ImGui ${EXAMPLE_SOURCES})
+endif()
 
 if(APPLE)
     target_link_libraries(LLGL-Example-ImGui "-framework Cocoa -framework Foundation -framework Metal -framework GameController")
