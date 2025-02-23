@@ -53,10 +53,14 @@ elseif(WIN32)
     )
     file(
         GLOB EXAMPLE_SOURCES_BACKEND
-        "sources/Backend/Direct3D11/*.*"
-        "sources/Backend/Direct3D12/*.*"
-        "sources/Backend/OpenGL/*.*"
-        "sources/Backend/Vulkan/*.*"
+        "sources/Backend/Direct3D11/*.cpp"
+        "sources/Backend/Direct3D11/*.h"
+        "sources/Backend/Direct3D12/*.cpp"
+        "sources/Backend/Direct3D12/*.h"
+        "sources/Backend/OpenGL/*.cpp"
+        "sources/Backend/OpenGL/*.h"
+        "sources/Backend/Vulkan/*.cpp"
+        "sources/Backend/Vulkan/*.h"
     )
     file(
         GLOB IMGUI_SOURCES_BACKEND
@@ -136,6 +140,30 @@ endif()
 if(APPLE)
     target_link_libraries(LLGL-Example-ImGui "-framework Cocoa -framework Foundation -framework Metal -framework GameController")
 endif()
+
+# Sets the working directory for startup for the specified project.
+function(set_project_working_dir PROJECT_NAME WORKING_DIR)
+    if(WIN32)
+        # VS_DEBUGGER_WORKING_DIRECTORY requires CMake 3.8.2
+        if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.8.2")
+            set_target_properties(
+                ${PROJECT_NAME} PROPERTIES
+                VS_DEBUGGER_WORKING_DIRECTORY "${WORKING_DIR}"
+            )
+        endif()
+    elseif(APPLE)
+        if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.5")
+            # XCODE_SCHEME_WORKING_DIRECTORY requires CMake 3.17.5
+            set_target_properties(
+                ${PROJECT_NAME} PROPERTIES
+                XCODE_GENERATE_SCHEME           TRUE
+                XCODE_SCHEME_WORKING_DIRECTORY  "${WORKING_DIR}"
+            )
+        endif()
+    endif()
+endfunction()
+
+set_project_working_dir(LLGL-Example-ImGui "${PROJECT_SOURCE_DIR}")
 
 # Add Vulkan dependency
 if(EXAMPLE_WITH_VULKAN)

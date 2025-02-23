@@ -25,7 +25,19 @@ public:
 
     BackendD3D11()
     {
-        CreateResources("Direct3D11");
+        CreateResources(
+            "Direct3D11",
+
+            // Vertex shader
+            "SceneShader.D3D11.hlsl",
+            "VSMain",
+            "vs_5_0",
+
+            // Pixel shader
+            "SceneShader.D3D11.hlsl",
+            "PSMain",
+            "ps_5_0"
+        );
     }
 
     ~BackendD3D11()

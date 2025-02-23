@@ -107,23 +107,53 @@ static void ShowImGuiElements()
 static void RenderFrame()
 {
     const float backgroundColor[4] = { 0.2f, 0.2f, 0.4f, 1.0f };
+    static float angle = 0.0f;
 
     cmdBuffer->Begin();
     {
+        // Upload new view data to GPU
+        if (scene.viewCbuffer != nullptr)
+        {
+            angle += 0.01f;
+            scene.ModelRotation(1.0f, 1.0f, 1.0f, angle);
+
+            cmdBuffer->UpdateBuffer(*scene.viewCbuffer, 0, &scene.view, sizeof(scene.view));
+        }
+
         cmdBuffer->BeginRenderPass(*swapChain);
         {
-            cmdBuffer->Clear(LLGL::ClearFlags::Color, LLGL::ClearValue{ backgroundColor });
+            cmdBuffer->Clear(LLGL::ClearFlags::ColorDepth, LLGL::ClearValue{ backgroundColor });
+
+            cmdBuffer->SetViewport(swapChain->GetResolution());
+
+            // Render 3D scene
+            if (scene.graphicsPSO != nullptr)
+            {
+                cmdBuffer->PushDebugGroup("RenderScene");
+                {
+                    cmdBuffer->SetPipelineState(*scene.graphicsPSO);
+                    cmdBuffer->SetVertexBuffer(*scene.vertexBuffer);
+                    cmdBuffer->SetIndexBuffer(*scene.indexBuffer);
+                    cmdBuffer->SetResource(0, *scene.viewCbuffer);
+                    cmdBuffer->DrawIndexed(scene.numIndices, 0);
+                }
+                cmdBuffer->PopDebugGroup();
+            }
 
             // GUI Rendering with ImGui library
-            backend->BeginFrame();
+            cmdBuffer->PushDebugGroup("RenderGUI");
             {
-                ImGui::NewFrame();
+                backend->BeginFrame();
                 {
-                    ShowImGuiElements();
+                    ImGui::NewFrame();
+                    {
+                        ShowImGuiElements();
+                    }
+                    ImGui::Render();
                 }
-                ImGui::Render();
+                backend->EndFrame(ImGui::GetDrawData());
             }
-            backend->EndFrame(ImGui::GetDrawData());
+            cmdBuffer->PopDebugGroup();
         }
         cmdBuffer->EndRenderPass();
     }

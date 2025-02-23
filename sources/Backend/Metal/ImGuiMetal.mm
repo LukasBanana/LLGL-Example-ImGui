@@ -28,7 +28,19 @@ public:
 
     BackendMetal()
     {
-        CreateResources("Metal");
+        CreateResources(
+            "Metal",
+
+            // Vertex shader
+            "SceneShader.metal",
+            "VSMain",
+            "1.1",
+
+            // Pixel shader
+            "SceneShader.metal",
+            "PSMain",
+            "1.1"
+        );
     }
 
     ~BackendMetal()

@@ -34,7 +34,18 @@ public:
     static BackendPtr NewBackend(const char* name);
 
 protected:
-    void CreateResources(const char* moduleName);
+    bool CreateResources(
+        const char* moduleName,
+        const char* vertShaderFilename,
+        const char* vertShaderEntry,
+        const char* vertShaderProfile,
+        const char* fragShaderFilename,
+        const char* fragShaderEntry,
+        const char* fragShaderProfile
+    );
+
+private:
+    LLGL::RenderingDebugger debugger;
 };
 
 #define REGISTER_BACKEND(CLASS, NAME)               \

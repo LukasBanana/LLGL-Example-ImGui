@@ -20,7 +20,19 @@ public:
 
     BackendGL()
     {
-        CreateResources("OpenGL");
+        CreateResources(
+            "OpenGL",
+
+            // Vertex shader
+            "SceneShader.GL.vert",
+            nullptr,
+            nullptr,
+
+            // Pixel shader
+            "SceneShader.GL.frag",
+            nullptr,
+            nullptr
+        );
     }
 
     ~BackendGL()

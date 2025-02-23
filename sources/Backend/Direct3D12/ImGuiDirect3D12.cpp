@@ -124,7 +124,19 @@ public:
 
     BackendD3D12()
     {
-        CreateResources("Direct3D12");
+        CreateResources(
+            "Direct3D12",
+
+            // Vertex shader
+            "SceneShader.D3D12.hlsl",
+            "VSMain",
+            "vs_6_0",
+
+            // Pixel shader
+            "SceneShader.D3D12.hlsl",
+            "PSMain",
+            "ps_6_0"
+        );
     }
 
     ~BackendD3D12()
