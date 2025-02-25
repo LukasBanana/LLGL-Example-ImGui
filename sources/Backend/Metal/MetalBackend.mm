@@ -45,8 +45,6 @@ public:
 
     ~BackendMetal()
     {
-        ImGui_ImplMetal_Shutdown();
-
         // Release Metal handles
         if (mtlDevice != nil)
             [mtlDevice release];
@@ -62,6 +60,11 @@ public:
         mtlDevice = nativeDeviceHandle.device;
 
         ImGui_ImplMetal_Init(mtlDevice);
+    }
+
+    void Release() override
+    {
+        ImGui_ImplMetal_Shutdown();
     }
 
     void BeginFrame() override

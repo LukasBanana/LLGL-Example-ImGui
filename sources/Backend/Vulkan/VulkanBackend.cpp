@@ -17,12 +17,22 @@
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 
+static VkFormat GetVulkanColorFormat(LLGL::Format format)
+{
+    return (format == LLGL::Format::BGRA8UNorm ? VK_FORMAT_B8G8R8A8_UNORM : VK_FORMAT_R8G8B8A8_UNORM);
+}
+
+static VkFormat GetVulkanDepthStencilFormat(LLGL::Format format)
+{
+    return (format == LLGL::Format::D32Float ? VK_FORMAT_D32_SFLOAT : VK_FORMAT_D24_UNORM_S8_UINT);
+}
+
 static VkRenderPass CreateVulkanRenderPass(VkDevice vulkanDevice)
 {
-    VkAttachmentDescription vulkanAttachmentDescs[1] = {};
+    VkAttachmentDescription vulkanAttachmentDescs[2] = {};
     {
         vulkanAttachmentDescs[0].flags          = 0;
-        vulkanAttachmentDescs[0].format         = VK_FORMAT_R8G8B8A8_UNORM;
+        vulkanAttachmentDescs[0].format         = GetVulkanColorFormat(swapChain->GetColorFormat());
         vulkanAttachmentDescs[0].samples        = VK_SAMPLE_COUNT_1_BIT;
         vulkanAttachmentDescs[0].loadOp         = VK_ATTACHMENT_LOAD_OP_LOAD;
         vulkanAttachmentDescs[0].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
@@ -31,11 +41,26 @@ static VkRenderPass CreateVulkanRenderPass(VkDevice vulkanDevice)
         vulkanAttachmentDescs[0].initialLayout  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         vulkanAttachmentDescs[0].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     }
+    {
+        vulkanAttachmentDescs[1].flags          = 0;
+        vulkanAttachmentDescs[1].format         = GetVulkanDepthStencilFormat(swapChain->GetDepthStencilFormat());
+        vulkanAttachmentDescs[1].samples        = VK_SAMPLE_COUNT_1_BIT;
+        vulkanAttachmentDescs[1].loadOp         = VK_ATTACHMENT_LOAD_OP_LOAD;
+        vulkanAttachmentDescs[1].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+        vulkanAttachmentDescs[1].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_LOAD;
+        vulkanAttachmentDescs[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+        vulkanAttachmentDescs[1].initialLayout  = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
+        vulkanAttachmentDescs[1].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    }
 
-    VkAttachmentReference vulkanAttachmentRefs[1] = {};
+    VkAttachmentReference vulkanAttachmentRefs[2] = {};
     {
         vulkanAttachmentRefs[0].attachment  = 0;
         vulkanAttachmentRefs[0].layout      = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
+    {
+        vulkanAttachmentRefs[1].attachment  = 1;
+        vulkanAttachmentRefs[1].layout      = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
     }
 
     VkSubpassDescription vulkanSubpassDescs[1] = {};
@@ -44,10 +69,10 @@ static VkRenderPass CreateVulkanRenderPass(VkDevice vulkanDevice)
         vulkanSubpassDescs[0].pipelineBindPoint         = VK_PIPELINE_BIND_POINT_GRAPHICS;
         vulkanSubpassDescs[0].inputAttachmentCount      = 0;
         vulkanSubpassDescs[0].pInputAttachments         = nullptr;
-        vulkanSubpassDescs[0].colorAttachmentCount      = sizeof(vulkanAttachmentRefs)/sizeof(vulkanAttachmentRefs[0]);
-        vulkanSubpassDescs[0].pColorAttachments         = vulkanAttachmentRefs;
+        vulkanSubpassDescs[0].colorAttachmentCount      = 1;
+        vulkanSubpassDescs[0].pColorAttachments         = &vulkanAttachmentRefs[0];
         vulkanSubpassDescs[0].pResolveAttachments       = nullptr;
-        vulkanSubpassDescs[0].pDepthStencilAttachment   = nullptr;
+        vulkanSubpassDescs[0].pDepthStencilAttachment   = &vulkanAttachmentRefs[1];
         vulkanSubpassDescs[0].preserveAttachmentCount   = 0;
         vulkanSubpassDescs[0].pPreserveAttachments      = nullptr;
     }
