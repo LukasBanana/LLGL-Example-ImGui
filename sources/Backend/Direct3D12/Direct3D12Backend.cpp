@@ -112,7 +112,7 @@ using D3D12DescriptorHeapAllocatorPtr = std::unique_ptr<D3D12DescriptorHeapAlloc
 
 static D3D12DescriptorHeapAllocatorPtr g_heapAllocator;
 
-class BackendD3D12 final : public Backend
+class Direct3D12Backend final : public Backend
 {
     // Global variables for the Direct3D 12 backend
     ID3D12Device*               d3dDevice               = nullptr;
@@ -122,24 +122,24 @@ class BackendD3D12 final : public Backend
 
 public:
 
-    BackendD3D12()
+    Direct3D12Backend()
     {
         CreateResources(
             "Direct3D12",
 
             // Vertex shader
-            "SceneShader.D3D12.hlsl",
+            "Direct3D12SceneShader.hlsl",
             "VSMain",
             "vs_6_0",
 
             // Pixel shader
-            "SceneShader.D3D12.hlsl",
+            "Direct3D12SceneShader.hlsl",
             "PSMain",
             "ps_6_0"
         );
     }
 
-    ~BackendD3D12()
+    ~Direct3D12Backend()
     {
         ImGui_ImplDX12_Shutdown();
 
@@ -205,4 +205,4 @@ public:
     }
 };
 
-REGISTER_BACKEND(BackendD3D12, "Direct3D12");
+REGISTER_BACKEND(Direct3D12Backend, "Direct3D12");

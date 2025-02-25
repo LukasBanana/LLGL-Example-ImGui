@@ -32,12 +32,12 @@ public:
             "Metal",
 
             // Vertex shader
-            "SceneShader.metal",
+            "MetalSceneShader.metal",
             "VSMain",
             "1.1",
 
             // Pixel shader
-            "SceneShader.metal",
+            "MetalSceneShader.metal",
             "PSMain",
             "1.1"
         );

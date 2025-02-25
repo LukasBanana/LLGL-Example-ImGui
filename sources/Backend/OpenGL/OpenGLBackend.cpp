@@ -14,28 +14,28 @@
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 
-class BackendGL final : public Backend
+class OpenGLBackend final : public Backend
 {
 public:
 
-    BackendGL()
+    OpenGLBackend()
     {
         CreateResources(
             "OpenGL",
 
             // Vertex shader
-            "SceneShader.GL.vert",
+            "OpenGLSceneShader.vert",
             nullptr,
             nullptr,
 
             // Pixel shader
-            "SceneShader.GL.frag",
+            "OpenGLSceneShader.frag",
             nullptr,
             nullptr
         );
     }
 
-    ~BackendGL()
+    ~OpenGLBackend()
     {
         ImGui_ImplOpenGL3_Shutdown();
     }
@@ -60,4 +60,4 @@ public:
     }
 };
 
-REGISTER_BACKEND(BackendGL, "OpenGL");
+REGISTER_BACKEND(OpenGLBackend, "OpenGL");

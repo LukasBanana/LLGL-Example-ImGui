@@ -14,9 +14,8 @@
 
 void PlatformInit(LLGL::Surface& surface)
 {
-    LLGL::Window& wnd = LLGL::CastTo<LLGL::Window>(surface);
     LLGL::NativeHandle nativeHandle;
-    wnd.GetNativeHandle(&nativeHandle, sizeof(nativeHandle));
+    surface.GetNativeHandle(&nativeHandle, sizeof(nativeHandle));
 
     ImGui_ImplWin32_Init(nativeHandle.window);
 }

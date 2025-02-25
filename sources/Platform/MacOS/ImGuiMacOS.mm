@@ -29,9 +29,8 @@ static NSView* GetContentViewFromNativeHandle(const LLGL::NativeHandle& nativeHa
 
 static NSView* GetNSViewFromSurface(LLGL::Surface& surface)
 {
-    LLGL::Window& wnd = LLGL::CastTo<LLGL::Window>(surface);
     LLGL::NativeHandle nativeHandle;
-    wnd.GetNativeHandle(&nativeHandle, sizeof(nativeHandle));
+    surface.GetNativeHandle(&nativeHandle, sizeof(nativeHandle));
     return GetContentViewFromNativeHandle(nativeHandle);
 }
 

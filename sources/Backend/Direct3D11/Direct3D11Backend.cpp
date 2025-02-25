@@ -15,7 +15,7 @@
 #include "imgui.h"
 #include "imgui_impl_dx11.h"
 
-class BackendD3D11 final : public Backend
+class Direct3D11Backend final : public Backend
 {
     // Global variables for the Direct3D 11 backend
     ID3D11Device*           d3dDevice           = nullptr;
@@ -23,24 +23,24 @@ class BackendD3D11 final : public Backend
 
 public:
 
-    BackendD3D11()
+    Direct3D11Backend()
     {
         CreateResources(
             "Direct3D11",
 
             // Vertex shader
-            "SceneShader.D3D11.hlsl",
+            "Direct3D11SceneShader.hlsl",
             "VSMain",
             "vs_5_0",
 
             // Pixel shader
-            "SceneShader.D3D11.hlsl",
+            "Direct3D11SceneShader.hlsl",
             "PSMain",
             "ps_5_0"
         );
     }
 
-    ~BackendD3D11()
+    ~Direct3D11Backend()
     {
         ImGui_ImplDX11_Shutdown();
 
@@ -80,4 +80,4 @@ public:
     }
 };
 
-REGISTER_BACKEND(BackendD3D11, "Direct3D11");
+REGISTER_BACKEND(Direct3D11Backend, "Direct3D11");
