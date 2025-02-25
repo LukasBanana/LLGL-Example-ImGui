@@ -42,8 +42,6 @@ public:
 
     ~Direct3D11Backend()
     {
-        ImGui_ImplDX11_Shutdown();
-
         // Release D3D handles
         if (d3dDevice != nullptr)
             d3dDevice->Release();
@@ -65,6 +63,13 @@ public:
         d3dDeviceContext = nativeContextHandle.deviceContext;
 
         ImGui_ImplDX11_Init(d3dDevice, d3dDeviceContext);
+    }
+
+    void Release() override
+    {
+        ImGui_ImplDX11_Shutdown();
+
+        Backend::Release();
     }
 
     void BeginFrame() override

@@ -28,6 +28,7 @@ public:
     virtual ~Backend();
 
     virtual void Init();
+    virtual void Release();
     virtual void BeginFrame();
     virtual void EndFrame(ImDrawData* data) = 0;
 

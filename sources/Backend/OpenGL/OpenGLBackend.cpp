@@ -35,16 +35,18 @@ public:
         );
     }
 
-    ~OpenGLBackend()
-    {
-        ImGui_ImplOpenGL3_Shutdown();
-    }
-
     void Init() override
     {
         Backend::Init();
 
         ImGui_ImplOpenGL3_Init();
+    }
+
+    void Release() override
+    {
+        ImGui_ImplOpenGL3_Shutdown();
+
+        Backend::Release();
     }
 
     void BeginFrame() override

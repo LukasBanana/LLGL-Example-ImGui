@@ -61,8 +61,10 @@ static int InitExample(int argc, char* argv[])
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
 
+#if WITH_IMGUI
     // Initialize LLGL/ImGui backend
     backend->Init();
+#endif
 
     // Attach input listener to main window
     input.Listen(swapChain->GetSurface());
@@ -72,11 +74,13 @@ static int InitExample(int argc, char* argv[])
 
 static void ShutdownExample()
 {
+#if WITH_IMGUI
+    // Shutdown ImGui
+    backend->Release();
+#endif
+
     // Release backend
     backend.reset();
-
-    // Shutdown ImGui
-    ImGui::DestroyContext();
 
     // Unload LLGL
     LLGL::RenderSystem::Unload(std::move(renderer));

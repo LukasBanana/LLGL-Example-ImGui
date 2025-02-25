@@ -12,13 +12,69 @@
 #include <LLGL/Platform/NativeHandle.h>
 #include <LLGL/Backend/Vulkan/NativeHandle.h>
 
+#include <vulkan/vulkan.h>
+
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
+
+static VkRenderPass CreateVulkanRenderPass(VkDevice vulkanDevice)
+{
+    VkAttachmentDescription vulkanAttachmentDescs[1] = {};
+    {
+        vulkanAttachmentDescs[0].flags          = 0;
+        vulkanAttachmentDescs[0].format         = VK_FORMAT_R8G8B8A8_UNORM;
+        vulkanAttachmentDescs[0].samples        = VK_SAMPLE_COUNT_1_BIT;
+        vulkanAttachmentDescs[0].loadOp         = VK_ATTACHMENT_LOAD_OP_LOAD;
+        vulkanAttachmentDescs[0].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+        vulkanAttachmentDescs[0].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_LOAD;
+        vulkanAttachmentDescs[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+        vulkanAttachmentDescs[0].initialLayout  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        vulkanAttachmentDescs[0].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    }
+
+    VkAttachmentReference vulkanAttachmentRefs[1] = {};
+    {
+        vulkanAttachmentRefs[0].attachment  = 0;
+        vulkanAttachmentRefs[0].layout      = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
+
+    VkSubpassDescription vulkanSubpassDescs[1] = {};
+    {
+        vulkanSubpassDescs[0].flags                     = 0;
+        vulkanSubpassDescs[0].pipelineBindPoint         = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        vulkanSubpassDescs[0].inputAttachmentCount      = 0;
+        vulkanSubpassDescs[0].pInputAttachments         = nullptr;
+        vulkanSubpassDescs[0].colorAttachmentCount      = sizeof(vulkanAttachmentRefs)/sizeof(vulkanAttachmentRefs[0]);
+        vulkanSubpassDescs[0].pColorAttachments         = vulkanAttachmentRefs;
+        vulkanSubpassDescs[0].pResolveAttachments       = nullptr;
+        vulkanSubpassDescs[0].pDepthStencilAttachment   = nullptr;
+        vulkanSubpassDescs[0].preserveAttachmentCount   = 0;
+        vulkanSubpassDescs[0].pPreserveAttachments      = nullptr;
+    }
+
+    VkRenderPassCreateInfo vulkanRenderPassInfo = {};
+    {
+        vulkanRenderPassInfo.sType              = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        vulkanRenderPassInfo.pNext              = nullptr;
+        vulkanRenderPassInfo.flags              = 0;
+        vulkanRenderPassInfo.attachmentCount    = sizeof(vulkanAttachmentDescs)/sizeof(vulkanAttachmentDescs[0]);
+        vulkanRenderPassInfo.pAttachments       = vulkanAttachmentDescs;
+        vulkanRenderPassInfo.subpassCount       = sizeof(vulkanSubpassDescs)/sizeof(vulkanSubpassDescs[0]);
+        vulkanRenderPassInfo.pSubpasses         = vulkanSubpassDescs;
+        vulkanRenderPassInfo.dependencyCount    = 0;
+        vulkanRenderPassInfo.pDependencies      = nullptr;
+    }
+    VkRenderPass vulkanRenderPass = VK_NULL_HANDLE;
+    VkResult result = vkCreateRenderPass(vulkanDevice, &vulkanRenderPassInfo, nullptr, &vulkanRenderPass);
+    LLGL_VERIFY(result == VK_SUCCESS);
+    return vulkanRenderPass;
+}
 
 class VulkanBackend final : public Backend
 {
     // Global variables for the Vulkan backend
-    VkCommandBuffer vulkanCommandBuffer = VK_NULL_HANDLE;
+    VkDevice        vulkanDevice        = VK_NULL_HANDLE;
+    VkRenderPass    vulkanRenderPass    = VK_NULL_HANDLE;
 
 public:
 
@@ -41,7 +97,8 @@ public:
 
     ~VulkanBackend()
     {
-        ImGui_ImplVulkan_Shutdown();
+        if (vulkanRenderPass != VK_NULL_HANDLE)
+            vkDestroyRenderPass(vulkanDevice, vulkanRenderPass, nullptr);
     }
 
     void Init() override
@@ -51,17 +108,33 @@ public:
         // Setup renderer backend
         LLGL::Vulkan::RenderSystemNativeHandle nativeDeviceHandle;
         renderer->GetNativeHandle(&nativeDeviceHandle, sizeof(nativeDeviceHandle));
-        //d3dDevice = nativeDeviceHandle.device;
+        vulkanDevice = nativeDeviceHandle.device;
 
-        LLGL::Vulkan::CommandBufferNativeHandle nativeContextHandle;
-        cmdBuffer->GetNativeHandle(&nativeContextHandle, sizeof(nativeContextHandle));
-        //d3dDeviceContext = nativeContextHandle.deviceContext;
+        // Create Vulkan render pass
+        vulkanRenderPass = CreateVulkanRenderPass(vulkanDevice);
 
-        ImGui_ImplVulkan_InitInfo initInfo;
+        ImGui_ImplVulkan_InitInfo initInfo = {};
         {
-
+            initInfo.Instance           = nativeDeviceHandle.instance;
+            initInfo.PhysicalDevice     = nativeDeviceHandle.physicalDevice;
+            initInfo.Device             = nativeDeviceHandle.device;
+            initInfo.QueueFamily        = nativeDeviceHandle.queueFamily;
+            initInfo.Queue              = nativeDeviceHandle.queue;
+            initInfo.DescriptorPool     = VK_NULL_HANDLE;
+            initInfo.DescriptorPoolSize = 64;
+            initInfo.RenderPass         = vulkanRenderPass;
+            initInfo.MinImageCount      = 2;
+            initInfo.ImageCount         = 2;
+            initInfo.MSAASamples        = VK_SAMPLE_COUNT_1_BIT;
         }
         ImGui_ImplVulkan_Init(&initInfo);
+    }
+
+    void Release() override
+    {
+        ImGui_ImplVulkan_Shutdown();
+
+        Backend::Release();
     }
 
     void BeginFrame() override
@@ -73,7 +146,10 @@ public:
 
     void EndFrame(ImDrawData* data) override
     {
-        ImGui_ImplVulkan_RenderDrawData(data, vulkanCommandBuffer);
+        LLGL::Vulkan::CommandBufferNativeHandle nativeContextHandle = {};
+        cmdBuffer->GetNativeHandle(&nativeContextHandle, sizeof(nativeContextHandle));
+
+        ImGui_ImplVulkan_RenderDrawData(data, nativeContextHandle.commandBuffer);
     }
 };
 

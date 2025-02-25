@@ -141,8 +141,6 @@ public:
 
     ~Direct3D12Backend()
     {
-        ImGui_ImplDX12_Shutdown();
-
         // Release D3D handles
         g_heapAllocator.reset();
         SAFE_RELEASE(d3dSRVDescriptorHeap);
@@ -187,6 +185,13 @@ public:
                 };
         }
         ImGui_ImplDX12_Init(&imGuiInfo);
+    }
+
+    void Release() override
+    {
+        ImGui_ImplDX12_Shutdown();
+
+        Backend::Release();
     }
 
     void BeginFrame() override

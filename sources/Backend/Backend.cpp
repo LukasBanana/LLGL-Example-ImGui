@@ -14,6 +14,7 @@
 #include <LLGL/RenderSystem.h>
 #include <vector>
 #include <cstdint>
+#include <cstring>
 
 
 using BackendRegisterMap = std::map<std::string, Backend::AllocateBackendFunc>;
@@ -21,8 +22,6 @@ using BackendRegisterMap = std::map<std::string, Backend::AllocateBackendFunc>;
 Backend::~Backend()
 {
     input.Drop(swapChain->GetSurface());
-
-    PlatformShutdown();
 }
 
 static BackendRegisterMap& GetBackendRegisterMap()
@@ -41,6 +40,13 @@ void Backend::Init()
 {
     PlatformInit(swapChain->GetSurface());
     lastTick = LLGL::Timer::Tick();
+}
+
+void Backend::Release()
+{
+    PlatformShutdown();
+
+    ImGui::DestroyContext();
 }
 
 void Backend::BeginFrame()
@@ -157,6 +163,15 @@ void Backend::OnResizeSurface(const LLGL::Extent2D& size)
     swapChain->ResizeBuffers(size);
     const float aspectRatio = static_cast<float>(size.width) / static_cast<float>(size.height);
     scene.ViewProjection(aspectRatio);
+}
+
+static LLGL::ShaderSourceType GetShaderSourceType(const char* filename)
+{
+    const std::size_t filenameLen = std::strlen(filename);
+    if (filenameLen > 4 && std::strcmp(filename + filenameLen - 4, ".spv") == 0)
+        return LLGL::ShaderSourceType::BinaryFile;
+    else
+        return LLGL::ShaderSourceType::CodeFile;
 }
 
 bool Backend::CreateResources(
@@ -298,12 +313,12 @@ bool Backend::CreateResources(
     const std::string vertShaderPath = shaderDir + vertShaderFilename;
     LLGL::ShaderDescriptor vertShaderDesc;
     {
-        vertShaderDesc.debugName    = "Shader.Vert";
-        vertShaderDesc.type         = LLGL::ShaderType::Vertex;
-        vertShaderDesc.source       = vertShaderPath.c_str();
-        vertShaderDesc.sourceType   = LLGL::ShaderSourceType::CodeFile;
-        vertShaderDesc.entryPoint   = vertShaderEntry;
-        vertShaderDesc.profile      = vertShaderProfile;
+        vertShaderDesc.debugName            = "Shader.Vert";
+        vertShaderDesc.type                 = LLGL::ShaderType::Vertex;
+        vertShaderDesc.source               = vertShaderPath.c_str();
+        vertShaderDesc.sourceType           = GetShaderSourceType(vertShaderFilename);
+        vertShaderDesc.entryPoint           = vertShaderEntry;
+        vertShaderDesc.profile              = vertShaderProfile;
         vertShaderDesc.vertex.inputAttribs  = std::vector<LLGL::VertexAttribute>{ std::begin(vertexAttribs), std::end(vertexAttribs) };
     }
     LLGL::Shader* vertShader = renderer->CreateShader(vertShaderDesc);
@@ -323,7 +338,7 @@ bool Backend::CreateResources(
         fragShaderDesc.debugName    = "Shader.Frag";
         fragShaderDesc.type         = LLGL::ShaderType::Fragment;
         fragShaderDesc.source       = fragShaderPath.c_str();
-        fragShaderDesc.sourceType   = LLGL::ShaderSourceType::CodeFile;
+        fragShaderDesc.sourceType   = GetShaderSourceType(fragShaderFilename);
         fragShaderDesc.entryPoint   = fragShaderEntry;
         fragShaderDesc.profile      = fragShaderProfile;
     }
@@ -382,8 +397,7 @@ static void ShowImGuiElements(float dt)
         {
             ImGui::Text("Frame Rate: %.3f ms (%.1f FPS)", dt * 1000.0f, 1.0f / dt);
 
-            if (ImGui::Checkbox("Vsync Interval", &scene.showcase.isVsync))
-                swapChain->SetVsyncInterval(scene.showcase.isVsync ? 1 : 0);
+            ImGui::Checkbox("Vsync Interval", &scene.showcase.isVsync);
         }
         ImGui::SeparatorText("Light");
         {
@@ -427,6 +441,8 @@ void Backend::RenderScene()
     std::uint64_t newTick = LLGL::Timer::Tick();
     const float deltaTime = static_cast<float>(static_cast<double>(newTick - lastTick) / static_cast<double>(LLGL::Timer::Frequency()));
 
+    const bool wasVsyncEnabled = scene.showcase.isVsync;
+
     cmdBuffer->Begin();
     {
         // Upload new view data to GPU
@@ -465,6 +481,7 @@ void Backend::RenderScene()
                 cmdBuffer->PopDebugGroup();
             }
 
+#if WITH_IMGUI
             // GUI Rendering with ImGui library
             cmdBuffer->PushDebugGroup("RenderGUI");
             {
@@ -479,10 +496,15 @@ void Backend::RenderScene()
                 backend->EndFrame(ImGui::GetDrawData());
             }
             cmdBuffer->PopDebugGroup();
+#endif
         }
         cmdBuffer->EndRenderPass();
     }
     cmdBuffer->End();
+
+    // If v-sync setting changed, update swap-chain now, but never during command encoding
+    if (wasVsyncEnabled != scene.showcase.isVsync)
+        swapChain->SetVsyncInterval(scene.showcase.isVsync ? 1 : 0);
 
     lastTick = newTick;
 }

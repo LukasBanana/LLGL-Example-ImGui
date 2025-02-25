@@ -15,6 +15,10 @@
 #include <cmath>
 
 
+#ifndef WITH_IMGUI
+#define WITH_IMGUI 1
+#endif
+
 #ifndef M_PI
 #define M_PI 3.141592654f
 #endif
