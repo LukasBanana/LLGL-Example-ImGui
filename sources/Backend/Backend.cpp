@@ -138,7 +138,7 @@ public:
     {
     }
 
-    void OnResize(LLGL::Window& /*sender*/, const LLGL::Extent2D& clientAreaSize) override
+    void OnResize(LLGL::Window& sender, const LLGL::Extent2D& clientAreaSize) override
     {
         if (cmdBuffer != nullptr)
         {
@@ -209,58 +209,25 @@ bool Backend::CreateResources(
     constexpr unsigned resY = 768;
     #endif
 
-    // Create custom window
-    LLGL::WindowDescriptor windowDesc;
-    {
-        windowDesc.title    = LLGL::UTF8String::Printf("LLGL/ImGui Example ( %s )", info.rendererName.c_str());
-        windowDesc.size     = LLGL::Extent2D{ resX, resY };
-        windowDesc.flags    = LLGL::WindowFlags::DisableSizeScaling | LLGL::WindowFlags::Centered | LLGL::WindowFlags::Resizable;
-    }
-    auto surface = std::shared_ptr<LLGL::Window>(LLGL::Window::Create(windowDesc));
-
     // Create swap chain
     LLGL::SwapChainDescriptor swapChainDesc;
     {
-        swapChainDesc.resolution = { resX, resY };
+        swapChainDesc.resolution    = { resX, resY };
+        swapChainDesc.resizable     = true;
     }
-    swapChain = renderer->CreateSwapChain(swapChainDesc, surface);
+    swapChain = renderer->CreateSwapChain(swapChainDesc);
 
     if (scene.showcase.isVsync)
         swapChain->SetVsyncInterval(1);
 
     // Register callback to update swap-chain on window resize
-    surface->AddEventListener(std::make_shared<WindowEventListener>(this));
-    surface->Show();
+    LLGL::Window& window = LLGL::CastTo<LLGL::Window>(swapChain->GetSurface());
+
+    window.AddEventListener(std::make_shared<WindowEventListener>(this));
+    window.SetTitle(LLGL::UTF8String::Printf("LLGL/ImGui Example ( %s )", info.rendererName.c_str()));
 
     // Create command buffer with immediate context
     cmdBuffer = renderer->CreateCommandBuffer(LLGL::CommandBufferFlags::ImmediateSubmit);
-
-    // Print renderer information
-    const LLGL::Extent2D swapChainRes = swapChain->GetResolution();
-
-    LLGL::Log::Printf(
-        "Render System:\n"
-        "  Renderer:           %s\n"
-        "  Device:             %s\n"
-        "  Vendor:             %s\n"
-        "  Shading Language:   %s\n"
-        "\n"
-        "Swap-Chain:\n"
-        "  Resolution:         %u x %u\n"
-        "  Samples:            %u\n"
-        "  ColorFormat:        %s\n"
-        "  DepthStencilFormat: %s\n"
-        "\n",
-        info.rendererName.c_str(),
-        info.deviceName.c_str(),
-        info.vendorName.c_str(),
-        info.shadingLanguageName.c_str(),
-        swapChainRes.width,
-        swapChainRes.height,
-        swapChain->GetSamples(),
-        LLGL::ToString(swapChain->GetColorFormat()),
-        LLGL::ToString(swapChain->GetDepthStencilFormat())
-    );
 
     // Initialize view settings
     scene.ViewProjection(static_cast<float>(resX) / static_cast<float>(resY));
@@ -501,6 +468,8 @@ void Backend::RenderScene()
         cmdBuffer->EndRenderPass();
     }
     cmdBuffer->End();
+
+    swapChain->Present();
 
     // If v-sync setting changed, update swap-chain now, but never during command encoding
     if (wasVsyncEnabled != scene.showcase.isVsync)

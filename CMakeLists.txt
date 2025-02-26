@@ -36,8 +36,6 @@ if(APPLE)
         "sources/Backend/Metal/*.h"
         "sources/Backend/OpenGL/*.cpp"
         "sources/Backend/OpenGL/*.h"
-        "sources/Backend/Vulkan/*.cpp"
-        "sources/Backend/Vulkan/*.h"
     )
     file(
         GLOB IMGUI_SOURCES_BACKEND
@@ -59,8 +57,6 @@ elseif(WIN32)
         "sources/Backend/Direct3D12/*.h"
         "sources/Backend/OpenGL/*.cpp"
         "sources/Backend/OpenGL/*.h"
-        "sources/Backend/Vulkan/*.cpp"
-        "sources/Backend/Vulkan/*.h"
     )
     file(
         GLOB IMGUI_SOURCES_BACKEND
@@ -78,7 +74,6 @@ elseif(LINUX)
     file(
         GLOB EXAMPLE_SOURCES_BACKEND
         "sources/Backend/OpenGL/*.*"
-        "sources/Backend/Vulkan/*.*"
     )
     file(
         GLOB IMGUI_SOURCES_BACKEND
@@ -93,6 +88,13 @@ if(EXAMPLE_WITH_VULKAN)
         "external/imgui/backends/imgui_impl_vulkan.*"
     )
     list(APPEND IMGUI_SOURCES_BACKEND ${IMGUI_SOURCES_BACKEND_VULKAN})
+
+    file(
+        GLOB EXAMPLE_SOURCES_BACKEND_VULKAN
+        "sources/Backend/Vulkan/*.cpp"
+        "sources/Backend/Vulkan/*.h"
+    )
+    list(APPEND EXAMPLE_SOURCES_BACKEND ${EXAMPLE_SOURCES_BACKEND_VULKAN})
 endif()
 
 file(GLOB EXAMPLE_SOURCES_BACKEND_MAIN "sources/Backend/*.*")
@@ -133,6 +135,8 @@ if(APPLE)
         MACOSX_BUNDLE                       ON
         MACOSX_BUNDLE_INFO_PLIST            "${PROJECT_SOURCE_DIR}/sources/Platform/MacOS/Info.plist"
     )
+elseif(WIN32)
+    add_executable(LLGL-Example-ImGui WIN32 ${EXAMPLE_SOURCES})
 else()
     add_executable(LLGL-Example-ImGui ${EXAMPLE_SOURCES})
 endif()

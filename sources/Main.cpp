@@ -14,13 +14,17 @@
 #include <string.h>
 #include <cmath>
 
+#if _WIN32
+#   include <Windows.h>
+#endif
 
-static std::unique_ptr<Backend> CreateLLGLBackend(int argc, char* argv[])
+
+static std::unique_ptr<Backend> CreateLLGLBackend(const char* moduleName)
 {
-    if (argc >= 2)
+    if (moduleName != nullptr && *moduleName != '\0')
     {
         // Create backend by its module name
-        return Backend::NewBackend(argv[1]);
+        return Backend::NewBackend(moduleName);
     }
 
     // Create default backend for the respective platform
@@ -35,7 +39,7 @@ static std::unique_ptr<Backend> CreateLLGLBackend(int argc, char* argv[])
     #endif
 }
 
-static int InitExample(int argc, char* argv[])
+static int InitExample(const char* moduleName)
 {
     // Initialize logging
     #ifdef __APPLE__
@@ -45,7 +49,7 @@ static int InitExample(int argc, char* argv[])
     #endif
 
     // Create LLGL backend
-    backend = CreateLLGLBackend(argc, argv);
+    backend = CreateLLGLBackend(moduleName);
     if (!backend)
     {
         LLGL::Log::Errorf(LLGL::Log::ColorFlags::StdError, "Failed to initialize backend!\n");
@@ -103,20 +107,33 @@ static void ForwardInputToImGui()
     }
 }
 
+static bool IsAnyWindowOpen()
+{
+    auto& window = LLGL::CastTo<LLGL::Window>(swapChain->GetSurface());
+    return window.IsShown();
+}
+
+#if _WIN32
+int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR cmdLine, int nShowCmd)
+#else
 int main(int argc, char* argv[])
+#endif
 {
     // Initialize example backend and ImGui
-    int init = InitExample(argc, argv);
+#if _WIN32
+    int init = InitExample(cmdLine);
+#else
+    int init = InitExample(argc >= 2 ? argv[1] : nullptr);
+#endif
     if (init != 0)
         return init;
 
-    while (LLGL::Surface::ProcessEvents() && !input.KeyPressed(LLGL::Key::Escape))
+    while (LLGL::Surface::ProcessEvents() && !input.KeyPressed(LLGL::Key::Escape) && IsAnyWindowOpen())
     {
         ForwardInputToImGui();
 
         // Render frame and present result on screen
         backend->RenderScene();
-        swapChain->Present();
 
         // Reset input state
         input.Reset();
