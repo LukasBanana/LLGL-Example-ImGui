@@ -7,6 +7,7 @@
  */
 
 #include "../../Globals.h"
+#include "../Backend.h"
 
 #include <LLGL/LLGL.h>
 #include <LLGL/Platform/NativeHandle.h>
@@ -17,7 +18,7 @@
 
 #import <Metal/Metal.h>
 
-class BackendMetal final : public Backend
+class MetalBackend final : public Backend
 {
     id<MTLDevice> mtlDevice = nil;
     id<MTLCommandBuffer> mtlCommandBuffer = nil;
@@ -26,7 +27,7 @@ class BackendMetal final : public Backend
 
 public:
 
-    BackendMetal()
+    MetalBackend()
     {
         CreateResources(
             "Metal",
@@ -43,16 +44,16 @@ public:
         );
     }
 
-    ~BackendMetal()
+    ~MetalBackend()
     {
         // Release Metal handles
         if (mtlDevice != nil)
             [mtlDevice release];
     }
 
-    void Init() override
+    void InitContext(WindowContext& context) override
     {
-        Backend::Init();
+        Backend::InitContext(context);
 
         // Setup renderer backend
         LLGL::Metal::RenderSystemNativeHandle nativeDeviceHandle;
@@ -62,14 +63,18 @@ public:
         ImGui_ImplMetal_Init(mtlDevice);
     }
 
-    void Release() override
+    void ReleaseContext(WindowContext& context) override
     {
+        ImGui::SetCurrentContext(context.imGuiContext);
+
         ImGui_ImplMetal_Shutdown();
+
+        Backend::ReleaseContext(context);
     }
 
-    void BeginFrame() override
+    void BeginFrame(WindowContext& context) override
     {
-        Backend::BeginFrame();
+        Backend::BeginFrame(context);
 
         LLGL::Metal::CommandBufferNativeHandle nativeContextHandle;
         cmdBuffer->GetNativeHandle(&nativeContextHandle, sizeof(nativeContextHandle));
@@ -97,4 +102,4 @@ public:
     }
 };
 
-REGISTER_BACKEND(BackendMetal, "Metal");
+REGISTER_BACKEND(MetalBackend, "Metal");
