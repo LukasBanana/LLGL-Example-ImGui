@@ -6,6 +6,7 @@
  * Direct3D 11 Backend
  */
 
+#include "../Backend.h"
 #include "../../Globals.h"
 
 #include <LLGL/LLGL.h>
@@ -49,9 +50,9 @@ public:
             d3dDeviceContext->Release();
     }
 
-    void Init() override
+    void InitContext(WindowContext& context) override
     {
-        Backend::Init();
+        Backend::InitContext(context);
 
         // Setup renderer backend
         LLGL::Direct3D11::RenderSystemNativeHandle nativeDeviceHandle;
@@ -65,16 +66,18 @@ public:
         ImGui_ImplDX11_Init(d3dDevice, d3dDeviceContext);
     }
 
-    void Release() override
+    void ReleaseContext(WindowContext& context) override
     {
+        ImGui::SetCurrentContext(context.imGuiContext);
+
         ImGui_ImplDX11_Shutdown();
 
-        Backend::Release();
+        Backend::ReleaseContext(context);
     }
 
-    void BeginFrame() override
+    void BeginFrame(WindowContext& context) override
     {
-        Backend::BeginFrame();
+        Backend::BeginFrame(context);
 
         ImGui_ImplDX11_NewFrame();
     }

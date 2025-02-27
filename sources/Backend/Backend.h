@@ -10,9 +10,12 @@
 
 #include <LLGL/LLGL.h>
 #include <LLGL/Platform/Platform.h>
+#include "../Globals.h"
 #include "imgui.h"
 #include <functional>
 #include <map>
+#include <vector>
+#include <memory>
 
 class Backend;
 
@@ -24,20 +27,33 @@ public:
     using AllocateBackendFunc = std::function<BackendPtr()>;
     static void RegisterBackend(const char* name, AllocateBackendFunc onAllocateFunc);
 
+    struct WindowContext
+    {
+        LLGL::SwapChain*    swapChain       = nullptr;
+        ImGuiContext*       imGuiContext    = nullptr;
+        Scene::View         view;
+    };
+
 public:
     virtual ~Backend();
 
-    virtual void Init();
-    virtual void Release();
-    virtual void BeginFrame();
+    void Init();
+    void Release();
+
+    virtual void BeginFrame(WindowContext& context);
     virtual void EndFrame(ImDrawData* data) = 0;
 
-    void RenderScene();
-    void OnResizeSurface(const LLGL::Extent2D& size);
+    void RenderSceneForAllContexts();
+    void RenderSceneForContext(WindowContext& context, float dt);
+
+    void OnResizeSurface(WindowContext& context, const LLGL::Extent2D& size);
 
     static BackendPtr NewBackend(const char* name);
 
 protected:
+    virtual void InitContext(WindowContext& context);
+    virtual void ReleaseContext(WindowContext& context);
+
     bool CreateResources(
         const char* moduleName,
         const char* vertShaderFilename,
@@ -49,9 +65,12 @@ protected:
     );
 
 private:
-    LLGL::RenderingDebugger debugger;
-    std::uint64_t           lastTick = 0;
+    LLGL::RenderingDebugger     debugger;
+    std::uint64_t               lastTick = 0;
+    std::vector<WindowContext>  windowContexts;
 };
+
+extern std::unique_ptr<Backend> g_backend;
 
 #define REGISTER_BACKEND(CLASS, NAME)               \
     static struct Register ## CLASS                 \

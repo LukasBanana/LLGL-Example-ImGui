@@ -17,11 +17,14 @@
 #include <cstring>
 
 
+std::unique_ptr<Backend> g_backend;
+
 using BackendRegisterMap = std::map<std::string, Backend::AllocateBackendFunc>;
 
 Backend::~Backend()
 {
-    input.Drop(swapChain->GetSurface());
+    for (LLGL::SwapChain* swapChain : g_swapChains)
+        input.Drop(swapChain->GetSurface());
 }
 
 static BackendRegisterMap& GetBackendRegisterMap()
@@ -36,22 +39,77 @@ void Backend::RegisterBackend(const char* name, AllocateBackendFunc onAllocateFu
     registeredBackends[name] = onAllocateFunc;
 }
 
+static ImGuiContext* NewImGuiContext()
+{
+    ImGuiContext* imGuiContext = ImGui::CreateContext();
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    }
+    return imGuiContext;
+}
+
+static void ForwardInputToImGui()
+{
+    // Forward user input to ImGui
+    ImGuiIO& io = ImGui::GetIO();
+
+    if (input.KeyDown(LLGL::Key::LButton))
+    {
+        io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+    }
+    if (input.KeyUp(LLGL::Key::LButton))
+    {
+        io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+    }
+}
+
 void Backend::Init()
 {
-    PlatformInit(swapChain->GetSurface());
-    lastTick = LLGL::Timer::Tick();
+    for (WindowContext& context : windowContexts)
+        InitContext(context);
 }
 
 void Backend::Release()
 {
-    PlatformShutdown();
-
-    ImGui::DestroyContext();
+    for (WindowContext& context : windowContexts)
+        ReleaseContext(context);
 }
 
-void Backend::BeginFrame()
+void Backend::InitContext(WindowContext& context)
 {
-    PlatformNewFrame(swapChain->GetSurface());
+    ImGui::SetCurrentContext(context.imGuiContext);
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+
+    // Initialize current ImGui context
+    PlatformInit(context.swapChain->GetSurface());
+
+    // Connect swap-chain and ImGui context with window
+    LLGL::CastTo<LLGL::Window>(context.swapChain->GetSurface()).SetUserData(&context);
+
+    lastTick = LLGL::Timer::Tick();
+}
+
+void Backend::ReleaseContext(WindowContext& context)
+{
+    ImGui::SetCurrentContext(context.imGuiContext);
+
+    PlatformShutdown();
+
+    ImGui::DestroyContext(context.imGuiContext);
+}
+
+void Backend::BeginFrame(WindowContext& context)
+{
+    ImGui::SetCurrentContext(context.imGuiContext);
+
+    PlatformNewFrame(context.swapChain->GetSurface());
+
+    ForwardInputToImGui();
 }
 
 std::unique_ptr<Backend> Backend::NewBackend(const char* name)
@@ -142,27 +200,30 @@ public:
     {
         if (cmdBuffer != nullptr)
         {
-            backend->OnResizeSurface(clientAreaSize);
-            backend->RenderScene();
-            swapChain->Present();
+            auto* context = static_cast<Backend::WindowContext*>(sender.GetUserData());
+            LLGL_VERIFY(context != nullptr);
+            LLGL_VERIFY(context->swapChain != nullptr);
+            backend->OnResizeSurface(*context, clientAreaSize);
+            backend->RenderSceneForAllContexts();
         }
     }
 
-    void OnUpdate(LLGL::Window& /*sender*/) override
+    void OnUpdate(LLGL::Window& sender) override
     {
         if (cmdBuffer != nullptr)
         {
-            backend->RenderScene();
-            swapChain->Present();
+            auto* context = static_cast<Backend::WindowContext*>(sender.GetUserData());
+            LLGL_VERIFY(context != nullptr);
+            backend->RenderSceneForAllContexts();
         }
     }
 };
 
-void Backend::OnResizeSurface(const LLGL::Extent2D& size)
+void Backend::OnResizeSurface(WindowContext& context, const LLGL::Extent2D& size)
 {
-    swapChain->ResizeBuffers(size);
+    context.swapChain->ResizeBuffers(size);
     const float aspectRatio = static_cast<float>(size.width) / static_cast<float>(size.height);
-    scene.ViewProjection(aspectRatio);
+    ViewProjection(context.view, aspectRatio);
 }
 
 static LLGL::ShaderSourceType GetShaderSourceType(const char* filename)
@@ -199,47 +260,73 @@ bool Backend::CreateResources(
         return false;
     }
 
-    const LLGL::RendererInfo& info = renderer->GetRendererInfo();
+    std::shared_ptr<WindowEventListener> eventListener = std::make_shared<WindowEventListener>(this);
 
-    #ifdef LLGL_OS_MACOS
-    constexpr unsigned resX = 1280*2;
-    constexpr unsigned resY = 768*2;
-    #else
-    constexpr unsigned resX = 1280;
-    constexpr unsigned resY = 768;
-    #endif
-
-    // Create swap chain
-    LLGL::SwapChainDescriptor swapChainDesc;
+    auto AddWindowWithSwapChain = [this, &eventListener](int x, int y, unsigned width, unsigned height) -> void
     {
-        swapChainDesc.resolution    = { resX, resY };
-        swapChainDesc.resizable     = true;
-    }
-    swapChain = renderer->CreateSwapChain(swapChainDesc);
+        const LLGL::RendererInfo& info = renderer->GetRendererInfo();
 
-    if (scene.showcase.isVsync)
-        swapChain->SetVsyncInterval(1);
+        #ifdef LLGL_OS_MACOS
+        const unsigned resX = width*2;
+        const unsigned resY = height*2;
+        #else
+        const unsigned resX = width;
+        const unsigned resY = height;
+        #endif
 
-    // Register callback to update swap-chain on window resize
-    LLGL::Window& window = LLGL::CastTo<LLGL::Window>(swapChain->GetSurface());
+        // Create swap chain
+        LLGL::SwapChainDescriptor swapChainDesc;
+        {
+            swapChainDesc.resolution    = { resX, resY };
+            swapChainDesc.resizable     = true;
+        }
+        LLGL::SwapChain* swapChain = renderer->CreateSwapChain(swapChainDesc);
 
-    window.AddEventListener(std::make_shared<WindowEventListener>(this));
-    window.SetTitle(LLGL::UTF8String::Printf("LLGL/ImGui Example ( %s )", info.rendererName.c_str()));
+        if (scene.showcase.isVsync)
+            swapChain->SetVsyncInterval(1);
+
+        // Register callback to update swap-chain on window resize
+        LLGL::Window& window = LLGL::CastTo<LLGL::Window>(swapChain->GetSurface());
+
+        window.AddEventListener(eventListener);
+        window.SetPosition(LLGL::Offset2D{ x, y });
+
+        // Initialize view settings
+        g_swapChains.push_back(swapChain);
+
+        // Create new swap-chain/ImGui context connection
+        WindowContext context;
+        {
+            context.swapChain       = swapChain;
+            context.imGuiContext    = NewImGuiContext();
+            ViewProjection(context.view, static_cast<float>(resX) / static_cast<float>(resY));
+        }
+        this->windowContexts.push_back(context);
+    };
+
+    LLGL::Display* display = LLGL::Display::GetPrimary();
+    LLGL_VERIFY(display != nullptr);
+
+    const LLGL::Extent2D displaySize = display->GetDisplayMode().resolution;
+
+    constexpr unsigned resX = 600;
+    constexpr unsigned resY = 800;
+    constexpr unsigned windowMargin = 20;
+
+    AddWindowWithSwapChain(static_cast<int>(displaySize.width/2 - resX - windowMargin), static_cast<int>(displaySize.height/2 - resY/2), resX, resY);
+    AddWindowWithSwapChain(static_cast<int>(displaySize.width/2 + windowMargin), static_cast<int>(displaySize.height/2 - resY/2), resX, resY);
 
     // Create command buffer with immediate context
     cmdBuffer = renderer->CreateCommandBuffer(LLGL::CommandBufferFlags::ImmediateSubmit);
-
-    // Initialize view settings
-    scene.ViewProjection(static_cast<float>(resX) / static_cast<float>(resY));
 
     // Create scene resources
     LLGL::BufferDescriptor viewCbufferDesc;
     {
         viewCbufferDesc.debugName   = "View.Cbuffer";
-        viewCbufferDesc.size        = sizeof(scene.view);
+        viewCbufferDesc.size        = sizeof(Scene::View);
         viewCbufferDesc.bindFlags   = LLGL::BindFlags::ConstantBuffer;
     }
-    scene.viewCbuffer = renderer->CreateBuffer(viewCbufferDesc, &scene.view);
+    scene.viewCbuffer = renderer->CreateBuffer(viewCbufferDesc);
 
     const LLGL::VertexAttribute vertexAttribs[3] =
     {
@@ -355,7 +442,7 @@ void NormalizeVector3(float* v)
     v[2] /= vecLen;
 }
 
-static void ShowImGuiElements(float dt)
+static void ShowImGuiElements(Backend::WindowContext& context, float dt)
 {
     // Show ImGui's demo window
     ImGui::Begin("LLGL/ImGui Example");
@@ -368,12 +455,12 @@ static void ShowImGuiElements(float dt)
         }
         ImGui::SeparatorText("Light");
         {
-            if (ImGui::SliderFloat3("Light Vector", scene.view.lightVector, -1.0f, +1.0f))
-                NormalizeVector3(scene.view.lightVector);
+            if (ImGui::SliderFloat3("Light Vector", context.view.lightVector, -1.0f, +1.0f))
+                NormalizeVector3(context.view.lightVector);
         }
         ImGui::SeparatorText("Scene");
         {
-            ImGui::SliderFloat("Model Distance", &scene.view.wMatrix[3][2], 3.0f, 25.0f);
+            ImGui::SliderFloat("Model Distance", &context.view.wMatrix[3][2], 3.0f, 25.0f);
 
             ImGui::Combo("Rotation Mode", &scene.showcase.rotateMode, "Auto\0Manual\0\0");
 
@@ -394,45 +481,61 @@ static void ShowImGuiElements(float dt)
         }
         ImGui::SeparatorText("Color");
         {
-            ImGui::ColorPicker4("Model Color", scene.view.modelColor);
+            ImGui::ColorPicker4("Model Color", context.view.modelColor, ImGuiColorEditFlags_PickerHueWheel);
         }
     }
     ImGui::End();
 }
 
-void Backend::RenderScene()
+static void UpdateScene(Scene::View& view, float deltaTime)
 {
-    const float backgroundColor[4] = { 0.2f, 0.2f, 0.4f, 1.0f };
+    if (scene.showcase.rotateMode == 0)
+    {
+        scene.showcase.rotation += scene.showcase.rotateSpeed * deltaTime * 10.0f;
+        if (scene.showcase.rotation > M_PI*2.0f)
+            scene.showcase.rotation -= M_PI*2.0f;
+        if (scene.showcase.rotation < 0.0f)
+            scene.showcase.rotation += M_PI*2.0f;
+    }
+    ModelRotation(view, 1.0f, 1.0f, 1.0f, scene.showcase.rotation);
 
+}
+
+void Backend::RenderSceneForAllContexts()
+{
     // Measure elapsed time between frames for smooth animations
     std::uint64_t newTick = LLGL::Timer::Tick();
     const float deltaTime = static_cast<float>(static_cast<double>(newTick - lastTick) / static_cast<double>(LLGL::Timer::Frequency()));
 
     const bool wasVsyncEnabled = scene.showcase.isVsync;
 
+    for (WindowContext& context : windowContexts)
+        RenderSceneForContext(context, deltaTime);
+
+    // If v-sync setting changed, update swap-chain now, but never during command encoding
+    //if (wasVsyncEnabled != scene.showcase.isVsync)
+    //    swapChain->SetVsyncInterval(scene.showcase.isVsync ? 1 : 0);
+
+    lastTick = newTick;
+}
+
+void Backend::RenderSceneForContext(WindowContext& context, float dt)
+{
+    constexpr float backgroundColor[4] = { 0.2f, 0.2f, 0.4f, 1.0f };
+
+    UpdateScene(context.view, dt);
+
     cmdBuffer->Begin();
     {
         // Upload new view data to GPU
         if (scene.viewCbuffer != nullptr)
-        {
-            if (scene.showcase.rotateMode == 0)
-            {
-                scene.showcase.rotation += scene.showcase.rotateSpeed * deltaTime * 10.0f;
-                if (scene.showcase.rotation > M_PI*2.0f)
-                    scene.showcase.rotation -= M_PI*2.0f;
-                if (scene.showcase.rotation < 0.0f)
-                    scene.showcase.rotation += M_PI*2.0f;
-            }
-            scene.ModelRotation(1.0f, 1.0f, 1.0f, scene.showcase.rotation);
+            cmdBuffer->UpdateBuffer(*scene.viewCbuffer, 0, &context.view, sizeof(context.view));
 
-            cmdBuffer->UpdateBuffer(*scene.viewCbuffer, 0, &scene.view, sizeof(scene.view));
-        }
-
-        cmdBuffer->BeginRenderPass(*swapChain);
+        cmdBuffer->BeginRenderPass(*context.swapChain);
         {
             cmdBuffer->Clear(LLGL::ClearFlags::ColorDepth, LLGL::ClearValue{ backgroundColor });
 
-            cmdBuffer->SetViewport(swapChain->GetResolution());
+            cmdBuffer->SetViewport(context.swapChain->GetResolution());
 
             // Render 3D scene
             if (scene.graphicsPSO != nullptr)
@@ -452,15 +555,15 @@ void Backend::RenderScene()
             // GUI Rendering with ImGui library
             cmdBuffer->PushDebugGroup("RenderGUI");
             {
-                backend->BeginFrame();
+                g_backend->BeginFrame(context);
                 {
                     ImGui::NewFrame();
                     {
-                        ShowImGuiElements(deltaTime);
+                        ShowImGuiElements(context, dt);
                     }
                     ImGui::Render();
                 }
-                backend->EndFrame(ImGui::GetDrawData());
+                g_backend->EndFrame(ImGui::GetDrawData());
             }
             cmdBuffer->PopDebugGroup();
 #endif
@@ -469,11 +572,5 @@ void Backend::RenderScene()
     }
     cmdBuffer->End();
 
-    swapChain->Present();
-
-    // If v-sync setting changed, update swap-chain now, but never during command encoding
-    if (wasVsyncEnabled != scene.showcase.isVsync)
-        swapChain->SetVsyncInterval(scene.showcase.isVsync ? 1 : 0);
-
-    lastTick = newTick;
+    context.swapChain->Present();
 }

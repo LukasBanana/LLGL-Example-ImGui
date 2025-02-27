@@ -9,16 +9,15 @@
 #include "Globals.h"
 
 
-LLGL::Input                 input;
-LLGL::RenderSystemPtr       renderer;
-LLGL::SwapChain*            swapChain;
-LLGL::CommandBuffer*        cmdBuffer;
-LLGL::PipelineState*        graphicsPSO;
-std::unique_ptr<Backend>    backend;
-Scene                       scene;
+LLGL::Input                     input;
+LLGL::RenderSystemPtr           renderer;
+std::vector<LLGL::SwapChain*>   g_swapChains;
+LLGL::CommandBuffer*            cmdBuffer;
+LLGL::PipelineState*            graphicsPSO;
+Scene                           scene;
 
 
-void Scene::ViewProjection(float aspectRatio, float nearPlane, float farPlane, float fov)
+void ViewProjection(Scene::View& view, float aspectRatio, float nearPlane, float farPlane, float fov)
 {
     auto& m = view.vpMatrix;
 
@@ -37,7 +36,7 @@ void Scene::ViewProjection(float aspectRatio, float nearPlane, float farPlane, f
     m[3][0] = 0.0f; m[3][1] = 0.0f; m[3][2] = m23;  m[3][3] = 0.0f;
 }
 
-void Scene::ModelRotation(float x, float y, float z, float angle)
+void ModelRotation(Scene::View& view, float x, float y, float z, float angle)
 {
     // Normalize axis vector
     const float axisLength = std::sqrtf(x*x + y*y + z*z);

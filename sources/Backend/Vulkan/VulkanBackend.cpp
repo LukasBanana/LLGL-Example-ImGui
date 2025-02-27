@@ -6,6 +6,7 @@
  * Vulkan Backend
  */
 
+#include "../Backend.h"
 #include "../../Globals.h"
 
 #include <LLGL/LLGL.h>
@@ -32,7 +33,7 @@ static VkRenderPass CreateVulkanRenderPass(VkDevice vulkanDevice)
     VkAttachmentDescription vulkanAttachmentDescs[2] = {};
     {
         vulkanAttachmentDescs[0].flags          = 0;
-        vulkanAttachmentDescs[0].format         = GetVulkanColorFormat(swapChain->GetColorFormat());
+        vulkanAttachmentDescs[0].format         = GetVulkanColorFormat(g_swapChains.front()->GetColorFormat());
         vulkanAttachmentDescs[0].samples        = VK_SAMPLE_COUNT_1_BIT;
         vulkanAttachmentDescs[0].loadOp         = VK_ATTACHMENT_LOAD_OP_LOAD;
         vulkanAttachmentDescs[0].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
@@ -43,7 +44,7 @@ static VkRenderPass CreateVulkanRenderPass(VkDevice vulkanDevice)
     }
     {
         vulkanAttachmentDescs[1].flags          = 0;
-        vulkanAttachmentDescs[1].format         = GetVulkanDepthStencilFormat(swapChain->GetDepthStencilFormat());
+        vulkanAttachmentDescs[1].format         = GetVulkanDepthStencilFormat(g_swapChains.front()->GetDepthStencilFormat());
         vulkanAttachmentDescs[1].samples        = VK_SAMPLE_COUNT_1_BIT;
         vulkanAttachmentDescs[1].loadOp         = VK_ATTACHMENT_LOAD_OP_LOAD;
         vulkanAttachmentDescs[1].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
@@ -126,9 +127,9 @@ public:
             vkDestroyRenderPass(vulkanDevice, vulkanRenderPass, nullptr);
     }
 
-    void Init() override
+    void InitContext(WindowContext& context) override
     {
-        Backend::Init();
+        Backend::InitContext(context);
 
         // Setup renderer backend
         LLGL::Vulkan::RenderSystemNativeHandle nativeDeviceHandle;
@@ -155,16 +156,18 @@ public:
         ImGui_ImplVulkan_Init(&initInfo);
     }
 
-    void Release() override
+    void ReleaseContext(WindowContext& context) override
     {
+        ImGui::SetCurrentContext(context.imGuiContext);
+
         ImGui_ImplVulkan_Shutdown();
 
-        Backend::Release();
+        Backend::ReleaseContext(context);
     }
 
-    void BeginFrame() override
+    void BeginFrame(WindowContext& context) override
     {
-        Backend::BeginFrame();
+        Backend::BeginFrame(context);
 
         ImGui_ImplVulkan_NewFrame();
     }

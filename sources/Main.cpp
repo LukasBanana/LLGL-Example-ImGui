@@ -10,6 +10,7 @@
 #include <LLGL/Platform/Platform.h>
 
 #include "imgui.h"
+#include "Backend/Backend.h"
 #include "Globals.h"
 #include <string.h>
 #include <cmath>
@@ -49,8 +50,8 @@ static int InitExample(const char* moduleName)
     #endif
 
     // Create LLGL backend
-    backend = CreateLLGLBackend(moduleName);
-    if (!backend)
+    g_backend = CreateLLGLBackend(moduleName);
+    if (!g_backend)
     {
         LLGL::Log::Errorf(LLGL::Log::ColorFlags::StdError, "Failed to initialize backend!\n");
         return 1;
@@ -58,20 +59,15 @@ static int InitExample(const char* moduleName)
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
 
 #if WITH_IMGUI
     // Initialize LLGL/ImGui backend
-    backend->Init();
+    g_backend->Init();
 #endif
 
     // Attach input listener to main window
-    input.Listen(swapChain->GetSurface());
+    for (LLGL::SwapChain* swapChain : g_swapChains)
+        input.Listen(swapChain->GetSurface());
 
     return 0;
 }
@@ -80,37 +76,25 @@ static void ShutdownExample()
 {
 #if WITH_IMGUI
     // Shutdown ImGui
-    backend->Release();
+    g_backend->Release();
 #endif
 
     // Release backend
-    backend.reset();
+    g_backend.reset();
 
     // Unload LLGL
     LLGL::RenderSystem::Unload(std::move(renderer));
 }
 
-static void ForwardInputToImGui()
-{
-    // Forward user input to ImGui
-    ImGuiIO& io = ImGui::GetIO();
-
-    if (input.KeyDown(LLGL::Key::LButton))
-    {
-        io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
-        io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
-    }
-    if (input.KeyUp(LLGL::Key::LButton))
-    {
-        io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
-        io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
-    }
-}
-
 static bool IsAnyWindowOpen()
 {
-    auto& window = LLGL::CastTo<LLGL::Window>(swapChain->GetSurface());
-    return window.IsShown();
+    for (LLGL::SwapChain* swapChain : g_swapChains)
+    {
+        auto& window = LLGL::CastTo<LLGL::Window>(swapChain->GetSurface());
+        if (window.IsShown())
+            return true;
+    }
+    return false;
 }
 
 #if _WIN32
@@ -130,10 +114,8 @@ int main(int argc, char* argv[])
 
     while (LLGL::Surface::ProcessEvents() && !input.KeyPressed(LLGL::Key::Escape) && IsAnyWindowOpen())
     {
-        ForwardInputToImGui();
-
         // Render frame and present result on screen
-        backend->RenderScene();
+        g_backend->RenderSceneForAllContexts();
 
         // Reset input state
         input.Reset();

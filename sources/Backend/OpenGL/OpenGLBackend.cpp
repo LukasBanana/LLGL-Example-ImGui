@@ -6,6 +6,7 @@
 * OpenGL Backend
 */
 
+#include "../Backend.h"
 #include "../../Globals.h"
 
 #include <LLGL/LLGL.h>
@@ -35,23 +36,25 @@ public:
         );
     }
 
-    void Init() override
+    void InitContext(WindowContext& context) override
     {
-        Backend::Init();
+        Backend::InitContext(context);
 
         ImGui_ImplOpenGL3_Init();
     }
 
-    void Release() override
+    void ReleaseContext(WindowContext& context) override
     {
+        ImGui::SetCurrentContext(context.imGuiContext);
+
         ImGui_ImplOpenGL3_Shutdown();
 
-        Backend::Release();
+        Backend::ReleaseContext(context);
     }
 
-    void BeginFrame() override
+    void BeginFrame(WindowContext& context) override
     {
-        Backend::BeginFrame();
+        Backend::BeginFrame(context);
 
         ImGui_ImplOpenGL3_NewFrame();
     }

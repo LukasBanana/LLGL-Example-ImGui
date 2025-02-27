@@ -6,6 +6,7 @@
 * Direct3D 12 Backend
 */
 
+#include "../Backend.h"
 #include "../../Globals.h"
 
 #include <LLGL/LLGL.h>
@@ -137,6 +138,14 @@ public:
             "PSMain",
             "ps_6_0"
         );
+
+        // Create SRV descriptor heap for ImGui's internal resources
+        LLGL::Direct3D12::RenderSystemNativeHandle nativeDeviceHandle;
+        renderer->GetNativeHandle(&nativeDeviceHandle, sizeof(nativeDeviceHandle));
+        d3dDevice = nativeDeviceHandle.device;
+        d3dCommandQueue = nativeDeviceHandle.commandQueue;
+
+        g_heapAllocator = D3D12DescriptorHeapAllocatorPtr(new D3D12DescriptorHeapAllocator{ d3dDevice, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 64 });
     }
 
     ~Direct3D12Backend()
@@ -149,22 +158,14 @@ public:
         SAFE_RELEASE(d3dDevice);
     }
 
-    void Init() override
+    void InitContext(WindowContext& context) override
     {
-        Backend::Init();
+        Backend::InitContext(context);
 
         // Setup renderer backend
-        LLGL::Direct3D12::RenderSystemNativeHandle nativeDeviceHandle;
-        renderer->GetNativeHandle(&nativeDeviceHandle, sizeof(nativeDeviceHandle));
-        d3dDevice = nativeDeviceHandle.device;
-        d3dCommandQueue = nativeDeviceHandle.commandQueue;
-
         LLGL::Direct3D12::CommandBufferNativeHandle nativeContextHandle;
         cmdBuffer->GetNativeHandle(&nativeContextHandle, sizeof(nativeContextHandle));
         d3dCommandList = nativeContextHandle.commandList;
-
-        // Create SRV descriptor heap for ImGui's internal resources
-        g_heapAllocator = D3D12DescriptorHeapAllocatorPtr(new D3D12DescriptorHeapAllocator{ d3dDevice, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 64 });
 
         // Initialize ImGui D3D12 backend
         ImGui_ImplDX12_InitInfo imGuiInfo = {};
@@ -172,8 +173,8 @@ public:
             imGuiInfo.Device                = d3dDevice;
             imGuiInfo.CommandQueue          = d3dCommandQueue;
             imGuiInfo.NumFramesInFlight     = 2;
-            imGuiInfo.RTVFormat             = GetRTVFormat(swapChain->GetColorFormat());
-            imGuiInfo.DSVFormat             = GetDSVFormat(swapChain->GetDepthStencilFormat());
+            imGuiInfo.RTVFormat             = GetRTVFormat(g_swapChains.front()->GetColorFormat());
+            imGuiInfo.DSVFormat             = GetDSVFormat(g_swapChains.front()->GetDepthStencilFormat());
             imGuiInfo.SrvDescriptorHeap     = d3dSRVDescriptorHeap;
             imGuiInfo.SrvDescriptorAllocFn  = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* outCPUDescHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGPUDescHandle)
                 {
@@ -187,16 +188,18 @@ public:
         ImGui_ImplDX12_Init(&imGuiInfo);
     }
 
-    void Release() override
+    void ReleaseContext(WindowContext& context) override
     {
+        ImGui::SetCurrentContext(context.imGuiContext);
+
         ImGui_ImplDX12_Shutdown();
 
-        Backend::Release();
+        Backend::ReleaseContext(context);
     }
 
-    void BeginFrame() override
+    void BeginFrame(WindowContext& context) override
     {
-        Backend::BeginFrame();
+        Backend::BeginFrame(context);
 
         ImGui_ImplDX12_NewFrame();
     }
