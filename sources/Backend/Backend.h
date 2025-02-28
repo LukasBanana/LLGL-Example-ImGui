@@ -32,6 +32,7 @@ public:
         LLGL::SwapChain*    swapChain       = nullptr;
         ImGuiContext*       imGuiContext    = nullptr;
         Scene::View         view;
+        LLGL::Offset2D      mousePosInWindow;
     };
 
 public:

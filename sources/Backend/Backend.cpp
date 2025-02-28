@@ -49,10 +49,12 @@ static ImGuiContext* NewImGuiContext()
     return imGuiContext;
 }
 
-static void ForwardInputToImGui()
+static void ForwardInputToImGui(Backend::WindowContext& context)
 {
     // Forward user input to ImGui
     ImGuiIO& io = ImGui::GetIO();
+
+    io.AddMousePosEvent(static_cast<float>(context.mousePosInWindow.x), static_cast<float>(context.mousePosInWindow.y));
 
     if (input.KeyDown(LLGL::Key::LButton))
     {
@@ -109,7 +111,7 @@ void Backend::BeginFrame(WindowContext& context)
 
     PlatformNewFrame(context.swapChain->GetSurface());
 
-    ForwardInputToImGui();
+    ForwardInputToImGui(context);
 }
 
 std::unique_ptr<Backend> Backend::NewBackend(const char* name)
@@ -216,6 +218,13 @@ public:
             LLGL_VERIFY(context != nullptr);
             backend->RenderSceneForAllContexts();
         }
+    }
+
+    void OnLocalMotion(LLGL::Window& sender, const LLGL::Offset2D& position) override
+    {
+        auto* context = static_cast<Backend::WindowContext*>(sender.GetUserData());
+        LLGL_VERIFY(context != nullptr);
+        context->mousePosInWindow = position;
     }
 };
 
