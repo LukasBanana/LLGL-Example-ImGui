@@ -119,7 +119,6 @@ class Direct3D12Backend final : public Backend
     ID3D12Device*               d3dDevice               = nullptr;
     ID3D12CommandQueue*         d3dCommandQueue         = nullptr;
     ID3D12GraphicsCommandList*  d3dCommandList          = nullptr;
-    ID3D12DescriptorHeap*       d3dSRVDescriptorHeap    = nullptr;
 
 public:
 
@@ -152,7 +151,6 @@ public:
     {
         // Release D3D handles
         g_heapAllocator.reset();
-        SAFE_RELEASE(d3dSRVDescriptorHeap);
         SAFE_RELEASE(d3dCommandList);
         SAFE_RELEASE(d3dCommandQueue);
         SAFE_RELEASE(d3dDevice);
@@ -175,7 +173,6 @@ public:
             imGuiInfo.NumFramesInFlight     = 2;
             imGuiInfo.RTVFormat             = GetRTVFormat(g_swapChains.front()->GetColorFormat());
             imGuiInfo.DSVFormat             = GetDSVFormat(g_swapChains.front()->GetDepthStencilFormat());
-            imGuiInfo.SrvDescriptorHeap     = d3dSRVDescriptorHeap;
             imGuiInfo.SrvDescriptorAllocFn  = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* outCPUDescHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGPUDescHandle)
                 {
                     g_heapAllocator->Alloc(*outCPUDescHandle, *outGPUDescHandle);
