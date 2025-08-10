@@ -29,10 +29,35 @@ public:
 
     struct WindowContext
     {
-        LLGL::SwapChain*    swapChain       = nullptr;
-        ImGuiContext*       imGuiContext    = nullptr;
-        Scene::View         view;
-        LLGL::Offset2D      mousePosInWindow;
+        LLGL::SwapChain*                swapChain       = nullptr;
+        ImGuiContext*                   imGuiContext    = nullptr;
+        std::shared_ptr<LLGL::Input>    input;
+        View                            view;
+        LLGL::Offset2D                  mousePosInWindow;
+
+        enum RotateMode
+        {
+            RotateModeAuto = 0,
+            RotateModeManual,
+        };
+
+        enum InputFocus
+        {
+            InputFocusNone = 0,
+            InputFocusLLGL,
+            InputFocusImGui,
+        };
+
+        InputFocus                      inputFocus      = InputFocusNone;
+
+        struct Showcase
+        {
+            int                         rotateMode      = 0;
+            float                       rotation        = 0.0f;
+            float                       rotateSpeed     = 0.1f;
+            bool                        isVsync         = false;
+        }
+        showcase;
     };
 
 public:
@@ -48,6 +73,8 @@ public:
     void RenderSceneForContext(WindowContext& context, float dt);
 
     void OnResizeSurface(WindowContext& context, const LLGL::Extent2D& size);
+
+    bool IsAnyWindowOpen() const;
 
     static BackendPtr NewBackend(const char* name);
 

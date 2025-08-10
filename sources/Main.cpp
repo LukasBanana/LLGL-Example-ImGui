@@ -65,10 +65,6 @@ static int InitExample(const char* moduleName)
     g_backend->Init();
 #endif
 
-    // Attach input listener to main window
-    for (LLGL::SwapChain* swapChain : g_swapChains)
-        input.Listen(swapChain->GetSurface());
-
     return 0;
 }
 
@@ -86,17 +82,6 @@ static void ShutdownExample()
     LLGL::RenderSystem::Unload(std::move(renderer));
 }
 
-static bool IsAnyWindowOpen()
-{
-    for (LLGL::SwapChain* swapChain : g_swapChains)
-    {
-        auto& window = LLGL::CastTo<LLGL::Window>(swapChain->GetSurface());
-        if (window.IsShown())
-            return true;
-    }
-    return false;
-}
-
 #if _WIN32
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR cmdLine, int nShowCmd)
 #else
@@ -112,13 +97,10 @@ int main(int argc, char* argv[])
     if (init != 0)
         return init;
 
-    while (LLGL::Surface::ProcessEvents() && !input.KeyPressed(LLGL::Key::Escape) && IsAnyWindowOpen())
+    while (LLGL::Surface::ProcessEvents() && !quitDemo && g_backend->IsAnyWindowOpen())
     {
         // Render frame and present result on screen
         g_backend->RenderSceneForAllContexts();
-
-        // Reset input state
-        input.Reset();
     }
 
     ShutdownExample();

@@ -28,12 +28,12 @@ static VkFormat GetVulkanDepthStencilFormat(LLGL::Format format)
     return (format == LLGL::Format::D32Float ? VK_FORMAT_D32_SFLOAT : VK_FORMAT_D24_UNORM_S8_UINT);
 }
 
-static VkRenderPass CreateVulkanRenderPass(VkDevice vulkanDevice)
+static VkRenderPass CreateVulkanRenderPass(VkDevice vulkanDevice, LLGL::SwapChain& swapChain)
 {
     VkAttachmentDescription vulkanAttachmentDescs[2] = {};
     {
         vulkanAttachmentDescs[0].flags          = 0;
-        vulkanAttachmentDescs[0].format         = GetVulkanColorFormat(g_swapChains.front()->GetColorFormat());
+        vulkanAttachmentDescs[0].format         = GetVulkanColorFormat(swapChain.GetColorFormat());
         vulkanAttachmentDescs[0].samples        = VK_SAMPLE_COUNT_1_BIT;
         vulkanAttachmentDescs[0].loadOp         = VK_ATTACHMENT_LOAD_OP_LOAD;
         vulkanAttachmentDescs[0].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
@@ -44,7 +44,7 @@ static VkRenderPass CreateVulkanRenderPass(VkDevice vulkanDevice)
     }
     {
         vulkanAttachmentDescs[1].flags          = 0;
-        vulkanAttachmentDescs[1].format         = GetVulkanDepthStencilFormat(g_swapChains.front()->GetDepthStencilFormat());
+        vulkanAttachmentDescs[1].format         = GetVulkanDepthStencilFormat(swapChain.GetDepthStencilFormat());
         vulkanAttachmentDescs[1].samples        = VK_SAMPLE_COUNT_1_BIT;
         vulkanAttachmentDescs[1].loadOp         = VK_ATTACHMENT_LOAD_OP_LOAD;
         vulkanAttachmentDescs[1].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
@@ -137,7 +137,7 @@ public:
         vulkanDevice = nativeDeviceHandle.device;
 
         // Create Vulkan render pass
-        vulkanRenderPass = CreateVulkanRenderPass(vulkanDevice);
+        vulkanRenderPass = CreateVulkanRenderPass(vulkanDevice, *context.swapChain);
 
         ImGui_ImplVulkan_InitInfo initInfo = {};
         {

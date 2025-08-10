@@ -23,8 +23,8 @@ using BackendRegisterMap = std::map<std::string, Backend::AllocateBackendFunc>;
 
 Backend::~Backend()
 {
-    for (LLGL::SwapChain* swapChain : g_swapChains)
-        input.Drop(swapChain->GetSurface());
+    for (WindowContext& context : windowContexts)
+        context.input->Drop(context.swapChain->GetSurface());
 }
 
 static BackendRegisterMap& GetBackendRegisterMap()
@@ -54,17 +54,58 @@ static void ForwardInputToImGui(Backend::WindowContext& context)
     // Forward user input to ImGui
     ImGuiIO& io = ImGui::GetIO();
 
-    io.AddMousePosEvent(static_cast<float>(context.mousePosInWindow.x), static_cast<float>(context.mousePosInWindow.y));
-
-    if (input.KeyDown(LLGL::Key::LButton))
+    if (context.input->KeyDown(LLGL::Key::LButton))
     {
         io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
         io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
     }
-    if (input.KeyUp(LLGL::Key::LButton))
+    if (context.input->KeyUp(LLGL::Key::LButton))
     {
         io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
         io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+    }
+}
+
+static void HandleInputOutsideImGui(Backend::WindowContext& context)
+{
+    switch (context.showcase.rotateMode)
+    {
+    case Backend::WindowContext::RotateModeManual:
+        if (context.input->KeyPressed(LLGL::Key::LButton))
+        {
+            context.showcase.rotation += static_cast<float>(context.input->GetMouseMotion().x) * 0.01f;
+            context.showcase.rotation = std::max(0.0f, std::min(context.showcase.rotation, M_PI*2.0f));
+        }
+        break;
+    }
+}
+
+static void ProcessMouseInput(Backend::WindowContext& context)
+{
+    // Forward user input to ImGui
+    ImGui::SetCurrentContext(context.imGuiContext);
+    ImGui::GetIO().AddMousePosEvent(static_cast<float>(context.mousePosInWindow.x), static_cast<float>(context.mousePosInWindow.y));
+
+    switch (context.inputFocus)
+    {
+    case Backend::WindowContext::InputFocusNone:
+        if (ImGui::GetIO().WantCaptureMouse)
+            context.inputFocus = Backend::WindowContext::InputFocusImGui;
+        else if (context.input->KeyDown(LLGL::Key::LButton))
+            context.inputFocus = Backend::WindowContext::InputFocusLLGL;
+        break;
+
+    case Backend::WindowContext::InputFocusImGui:
+        ForwardInputToImGui(context);
+        if (!ImGui::GetIO().WantCaptureMouse)
+            context.inputFocus = Backend::WindowContext::InputFocusNone;
+        break;
+
+    case Backend::WindowContext::InputFocusLLGL:
+        HandleInputOutsideImGui(context);
+        if (context.input->KeyUp(LLGL::Key::LButton))
+            context.inputFocus = Backend::WindowContext::InputFocusNone;
+        break;
     }
 }
 
@@ -110,8 +151,6 @@ void Backend::BeginFrame(WindowContext& context)
     ImGui::SetCurrentContext(context.imGuiContext);
 
     PlatformNewFrame(context.swapChain->GetSurface());
-
-    ForwardInputToImGui(context);
 }
 
 std::unique_ptr<Backend> Backend::NewBackend(const char* name)
@@ -235,6 +274,17 @@ void Backend::OnResizeSurface(WindowContext& context, const LLGL::Extent2D& size
     ViewProjection(context.view, aspectRatio);
 }
 
+bool Backend::IsAnyWindowOpen() const
+{
+    for (const WindowContext& context : windowContexts)
+    {
+        auto& window = LLGL::CastTo<LLGL::Window>(context.swapChain->GetSurface());
+        if (window.IsShown())
+            return true;
+    }
+    return false;
+}
+
 static LLGL::ShaderSourceType GetShaderSourceType(const char* filename)
 {
     const std::size_t filenameLen = std::strlen(filename);
@@ -291,23 +341,18 @@ bool Backend::CreateResources(
         }
         LLGL::SwapChain* swapChain = renderer->CreateSwapChain(swapChainDesc);
 
-        if (scene.showcase.isVsync)
-            swapChain->SetVsyncInterval(1);
-
         // Register callback to update swap-chain on window resize
         LLGL::Window& window = LLGL::CastTo<LLGL::Window>(swapChain->GetSurface());
 
         window.AddEventListener(eventListener);
         window.SetPosition(LLGL::Offset2D{ x, y });
 
-        // Initialize view settings
-        g_swapChains.push_back(swapChain);
-
         // Create new swap-chain/ImGui context connection
         WindowContext context;
         {
             context.swapChain       = swapChain;
             context.imGuiContext    = NewImGuiContext();
+            context.input           = std::make_shared<LLGL::Input>(swapChain->GetSurface());
             ViewProjection(context.view, static_cast<float>(resX) / static_cast<float>(resY));
         }
         this->windowContexts.push_back(context);
@@ -332,7 +377,7 @@ bool Backend::CreateResources(
     LLGL::BufferDescriptor viewCbufferDesc;
     {
         viewCbufferDesc.debugName   = "View.Cbuffer";
-        viewCbufferDesc.size        = sizeof(Scene::View);
+        viewCbufferDesc.size        = sizeof(View);
         viewCbufferDesc.bindFlags   = LLGL::BindFlags::ConstantBuffer;
     }
     scene.viewCbuffer = renderer->CreateBuffer(viewCbufferDesc);
@@ -460,7 +505,7 @@ static void ShowImGuiElements(Backend::WindowContext& context, float dt)
         {
             ImGui::Text("Frame Rate: %.3f ms (%.1f FPS)", dt * 1000.0f, 1.0f / dt);
 
-            ImGui::Checkbox("Vsync Interval", &scene.showcase.isVsync);
+            ImGui::Checkbox("Vsync Interval", &context.showcase.isVsync);
         }
         ImGui::SeparatorText("Light");
         {
@@ -471,20 +516,20 @@ static void ShowImGuiElements(Backend::WindowContext& context, float dt)
         {
             ImGui::SliderFloat("Model Distance", &context.view.wMatrix[3][2], 3.0f, 25.0f);
 
-            ImGui::Combo("Rotation Mode", &scene.showcase.rotateMode, "Auto\0Manual\0\0");
+            ImGui::Combo("Rotation Mode", &context.showcase.rotateMode, "Auto\0Manual\0\0");
 
-            switch (scene.showcase.rotateMode)
+            switch (context.showcase.rotateMode)
             {
-            case 0:
-                if (ImGui::SliderFloat("Rotation Speed", &scene.showcase.rotateSpeed, -1.0f, +1.0f))
+            case Backend::WindowContext::RotateModeAuto:
+                if (ImGui::SliderFloat("Rotation Speed", &context.showcase.rotateSpeed, -1.0f, +1.0f))
                 {
-                    if (std::abs(scene.showcase.rotateSpeed) < 0.05f)
-                        scene.showcase.rotateSpeed = 0.0f;
+                    if (std::abs(context.showcase.rotateSpeed) < 0.05f)
+                        context.showcase.rotateSpeed = 0.0f;
                 }
                 break;
 
-            case 1:
-                ImGui::SliderFloat("Rotation Angle", &scene.showcase.rotation, 0.0f, M_PI*2.0f);
+            case Backend::WindowContext::RotateModeManual:
+                ImGui::SliderFloat("Rotation Angle", &context.showcase.rotation, 0.0f, M_PI*2.0f);
                 break;
             }
         }
@@ -496,34 +541,45 @@ static void ShowImGuiElements(Backend::WindowContext& context, float dt)
     ImGui::End();
 }
 
-static void UpdateScene(Scene::View& view, float deltaTime)
+static void UpdateScene(Backend::WindowContext& context, float deltaTime)
 {
-    if (scene.showcase.rotateMode == 0)
+    switch (context.showcase.rotateMode)
     {
-        scene.showcase.rotation += scene.showcase.rotateSpeed * deltaTime * 10.0f;
-        if (scene.showcase.rotation > M_PI*2.0f)
-            scene.showcase.rotation -= M_PI*2.0f;
-        if (scene.showcase.rotation < 0.0f)
-            scene.showcase.rotation += M_PI*2.0f;
+    case Backend::WindowContext::RotateModeAuto:
+        context.showcase.rotation += context.showcase.rotateSpeed * deltaTime * 10.0f;
+        if (context.showcase.rotation > M_PI*2.0f)
+            context.showcase.rotation -= M_PI*2.0f;
+        if (context.showcase.rotation < 0.0f)
+            context.showcase.rotation += M_PI*2.0f;
+        break;
     }
-    ModelRotation(view, 1.0f, 1.0f, 1.0f, scene.showcase.rotation);
 
+    ModelRotation(context.view, 1.0f, 1.0f, 1.0f, context.showcase.rotation);
 }
 
 void Backend::RenderSceneForAllContexts()
 {
     // Measure elapsed time between frames for smooth animations
-    std::uint64_t newTick = LLGL::Timer::Tick();
+    const std::uint64_t newTick = LLGL::Timer::Tick();
     const float deltaTime = static_cast<float>(static_cast<double>(newTick - lastTick) / static_cast<double>(LLGL::Timer::Frequency()));
 
-    const bool wasVsyncEnabled = scene.showcase.isVsync;
-
     for (WindowContext& context : windowContexts)
+    {
+        const bool wasVsyncEnabled = context.showcase.isVsync;
+
         RenderSceneForContext(context, deltaTime);
 
-    // If v-sync setting changed, update swap-chain now, but never during command encoding
-    //if (wasVsyncEnabled != scene.showcase.isVsync)
-    //    swapChain->SetVsyncInterval(scene.showcase.isVsync ? 1 : 0);
+        // Process global input events
+        if (context.input->KeyPressed(LLGL::Key::Escape))
+            quitDemo = true;
+
+        // Reset input states for current context
+        context.input->Reset();
+
+        // If v-sync setting changed, update swap-chain now, but never during command encoding
+        if (wasVsyncEnabled != context.showcase.isVsync)
+            context.swapChain->SetVsyncInterval(context.showcase.isVsync ? 1 : 0);
+    }
 
     lastTick = newTick;
 }
@@ -532,7 +588,9 @@ void Backend::RenderSceneForContext(WindowContext& context, float dt)
 {
     constexpr float backgroundColor[4] = { 0.2f, 0.2f, 0.4f, 1.0f };
 
-    UpdateScene(context.view, dt);
+    ProcessMouseInput(context);
+
+    UpdateScene(context, dt);
 
     cmdBuffer->Begin();
     {

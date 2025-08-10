@@ -171,8 +171,8 @@ public:
             imGuiInfo.Device                = d3dDevice;
             imGuiInfo.CommandQueue          = d3dCommandQueue;
             imGuiInfo.NumFramesInFlight     = 2;
-            imGuiInfo.RTVFormat             = GetRTVFormat(g_swapChains.front()->GetColorFormat());
-            imGuiInfo.DSVFormat             = GetDSVFormat(g_swapChains.front()->GetDepthStencilFormat());
+            imGuiInfo.RTVFormat             = GetRTVFormat(context.swapChain->GetColorFormat());
+            imGuiInfo.DSVFormat             = GetDSVFormat(context.swapChain->GetDepthStencilFormat());
             imGuiInfo.SrvDescriptorAllocFn  = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* outCPUDescHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGPUDescHandle)
                 {
                     g_heapAllocator->Alloc(*outCPUDescHandle, *outGPUDescHandle);
